@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "822677258148",
+    "project_id": "cipher-eye",
+    "storage_bucket": "cipher-eye.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:822677258148:android:59b45d6a37959060018b31",
+        "android_client_info": {
+          "package_name": "com.example.cipher_eye"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "822677258148-5ioqnammb1jeo2gkbq4ck7j9iic3i3jk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXdJmyGR_XYZEhIly6zAcUfAH6K0KbGH8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "822677258148-5ioqnammb1jeo2gkbq4ck7j9iic3i3jk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
