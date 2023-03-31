@@ -57,7 +57,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDXdJmyGR_XYZEhIly6zAcUfAH6K0KbGH8',
-    appId: '1:822677258148:android:59b45d6a37959060018b31',
+    appId: '1:822677258148:android:28e2fb571697db24018b31',
     messagingSenderId: '822677258148',
     projectId: 'cipher-eye',
     storageBucket: 'cipher-eye.appspot.com',
@@ -65,11 +65,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAxBXqxZjfgok2dyJtAXf6Q-MntNBmvShw',
-    appId: '1:822677258148:ios:929f4d7ab6765874018b31',
+    appId: '1:822677258148:ios:550214d9b31d002e018b31',
     messagingSenderId: '822677258148',
     projectId: 'cipher-eye',
     storageBucket: 'cipher-eye.appspot.com',
     iosClientId: '822677258148-891220u1iqjij976fqt0rp5apbasgifi.apps.googleusercontent.com',
-    iosBundleId: 'com.example.cipherEye',
+    iosBundleId: 'kreiseck.ciphereye',
   );
 }

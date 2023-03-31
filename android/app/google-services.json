@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:822677258148:android:59b45d6a37959060018b31",
+        "mobilesdk_app_id": "1:822677258148:android:28e2fb571697db24018b31",
         "android_client_info": {
-          "package_name": "com.example.cipher_eye"
+          "package_name": "com.kreiseck.ciphereye"
         }
       },
       "oauth_client": [
@@ -29,6 +29,13 @@
             {
               "client_id": "822677258148-5ioqnammb1jeo2gkbq4ck7j9iic3i3jk.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "822677258148-14j81fcqsi94buad8r5sm7d336q0jhii.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.kreiseck.ciphereye"
+              }
             }
           ]
         }

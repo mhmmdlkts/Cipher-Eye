@@ -93,38 +93,19 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                     },
                   ),
                   SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(child: TextFormField(
-                        controller: _passwordController,
-                        decoration: InputDecoration(
-                            labelText: 'Password',
-                            hintText: 'Enter password',
-                            enabled: !isLoading
-                        ),
-                        validator: (String? value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a password';
-                          }
-                          return null;
-                        },
-                      ),),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await Clipboard.setData(ClipboardData(text: _passwordController.text));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Password copied to clipboard!'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                        child: Padding(
-                          padding: EdgeInsets.all(10),
-                          child: Icon(Icons.copy),
-                        ),
-                      ),
-                    ],
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: InputDecoration(
+                        labelText: 'Password',
+                        hintText: 'Enter password',
+                        enabled: !isLoading
+                    ),
+                    validator: (String? value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a password';
+                      }
+                      return null;
+                    },
                   )
                 ],
               ),
@@ -143,6 +124,13 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                       plaintText: _passwordController.text,
                     );
                     await PasswordService.addNewPassword(password);
+                    await Clipboard.setData(ClipboardData(text: _passwordController.text));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Password copied to clipboard!'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
                   }
                   if (mounted) {
                     Navigator.pop(context);

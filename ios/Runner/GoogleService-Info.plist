@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>822677258148-891220u1iqjij976fqt0rp5apbasgifi.apps.googleusercontent.com</string>
+	<string>822677258148-14j81fcqsi94buad8r5sm7d336q0jhii.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.822677258148-891220u1iqjij976fqt0rp5apbasgifi</string>
+	<string>com.googleusercontent.apps.822677258148-14j81fcqsi94buad8r5sm7d336q0jhii</string>
 	<key>API_KEY</key>
 	<string>AIzaSyAxBXqxZjfgok2dyJtAXf6Q-MntNBmvShw</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +13,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.cipherEye</string>
+	<string>com.kreiseck.ciphereye</string>
 	<key>PROJECT_ID</key>
 	<string>cipher-eye</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:822677258148:ios:929f4d7ab6765874018b31</string>
+	<string>1:822677258148:ios:550214d9b31d002e018b31</string>
 </dict>
 </plist>
