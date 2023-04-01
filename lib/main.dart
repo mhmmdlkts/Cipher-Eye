@@ -58,6 +58,7 @@ class _MyApp extends State<MyApp> {
               if (user == null) {
                 return SignInScreen(
                   providers: [EmailAuthProvider()],
+
                 );
               } else {
                 if (++i >= 2) {

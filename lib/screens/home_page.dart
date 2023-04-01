@@ -1,7 +1,10 @@
 import 'package:cipher_eye/screens/add_new_password_screen.dart';
 import 'package:cipher_eye/screens/settings_screen.dart';
+import 'package:cipher_eye/services/firebase_service.dart';
 import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
+import 'package:cipher_eye/services/secure_storage_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -51,6 +54,12 @@ class _HomePageState extends State<HomePage> {
                       builder: (context) => SettingsScreen(),
                     )
                 );
+              },
+            ),
+            ListTile(
+              title: const Text('Sign Out', style: TextStyle(color: Colors.redAccent),),
+              onTap: () {
+                FirebaseService.signOut();
               },
             ),
           ],
