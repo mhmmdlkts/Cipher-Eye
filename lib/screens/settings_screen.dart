@@ -1,3 +1,4 @@
+import 'package:cipher_eye/services/history_service.dart';
 import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +10,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _keyController = TextEditingController();
   bool isLoading = false;
+  bool isVisible = false;
 
   @override
   void initState() {
@@ -86,9 +88,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Expanded(
               child: Text(
-                List.filled(key?.length ?? 32, "*").join(),
+                isVisible?(key??''):List.filled(key?.length ?? 32, "*").join(),
                 overflow: TextOverflow.ellipsis,
               ),
+            ),
+            IconButton(
+              onPressed: () async {
+                await HistoryService.saveShowKey();
+                setState(() {
+                  isVisible = !isVisible;
+                });
+              },
+              icon: Icon(isVisible?Icons.visibility:Icons.visibility_off),
             ),
             IconButton(
               onPressed: () async {

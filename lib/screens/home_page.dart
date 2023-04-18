@@ -18,67 +18,135 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-
-  @override
-  void initState() {
-    super.initState();
-  }
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  bool _showSearchBar = false;
+  String? searchVal;
 
   @override
   Widget build(BuildContext context) {
-    List<Password> passwords = PasswordService.newPasswords;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Cipher Eye'),
-      ),
-      body: ListView.builder(
-        itemCount: passwords.length,
-        itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        title: Stack(
+          alignment: Alignment.center,
           children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color(0xff32614f),
+            Opacity(
+              opacity: _showSearchBar?1:0,
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search',
+                  hintStyle: TextStyle(color: Colors.white),
+                  border: InputBorder.none,
+                ),
+                style: TextStyle(color: Colors.white),
+                onChanged: (val) {
+                  setState(() {
+                    searchVal = val;
+                    if (searchVal != null && searchVal!.isEmpty) {
+                      searchVal = null;
+                    }
+                    if (searchVal != null) {
+                      _showSearchBar = true;
+                    }
+                  });
+                },
+                autofocus: true,
               ),
-              child: Text(PersonService.person?.name??'', style: TextStyle(color: Colors.white)),
             ),
-            ListTile(
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SettingsScreen(),
-                    )
-                );
-              },
-            ),
-            ListTile(
-              title: const Text('Sign Out', style: TextStyle(color: Colors.redAccent),),
-              onTap: () {
-                FirebaseService.signOut();
-              },
-            ),
+            Opacity(
+              opacity: _showSearchBar?0:1,
+              child: Text('Cipher Eye'),
+            )
           ],
         ),
+        actions: [
+          if (_showSearchBar)
+            IconButton(
+              icon: Icon(Icons.clear),
+              onPressed: () {
+                setState(() {
+                  searchVal = null;
+                  _showSearchBar = false;
+                });
+              },
+            ),
+          if (!_showSearchBar)
+            IconButton(
+              icon: Icon(Icons.search),
+              onPressed: () {
+                setState(() {
+                  _showSearchBar = true;
+                });
+              },
+            ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
-        onPressed: () async {
-          await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AddNewPasswordScreen(),
-              )
-          );
-          setState(() {});
+      body: NotificationListener<ScrollNotification>(
+        onNotification: (scrollNotification) {
+          if (!_showSearchBar && scrollNotification.metrics.pixels < -25) {
+            setState(() {
+              _showSearchBar = true;
+            });
+          }
+          return false;
         },
+        child: ListView.builder(
+          controller: _scrollController,
+          itemCount: passwords.length,
+          itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
+        ),
       ),
+      drawer: _drawer(),
+      floatingActionButton: _fab(),
     );
   }
+
+  List<Password> get passwords {
+    if (searchVal == null) {
+      return PasswordService.newPasswords;
+    }
+    String specialChars = "+`-*/()&%§!?\$#@^_~|{}[]:;,<>.=";
+    List<String> srcValList = searchVal!.split(' ').where((element) => element.isNotEmpty).toList();
+    Map<String, List<Password>> resultMap = {};
+    for (String srcVal in srcValList) {
+      for (String c in specialChars.characters) {
+        srcVal = srcVal.replaceAll(c, "");
+      }
+      resultMap[srcVal] = PasswordService.newPasswords.where((element) {
+        if (element.website == null || element.username == null) {
+          return true;
+        }
+        String website = element.website!;
+        String username = element.username!;
+        for (String c in specialChars.characters) {
+          website = website.replaceAll(c, "");
+          username = username.replaceAll(c, "");
+        }
+        return website.contains(srcVal) || username.contains(srcVal);
+      }).toList();
+    }
+    List<Password> result = [];
+    resultMap.forEach((key, value) {
+      if (result.isEmpty) {
+        result.addAll(value);
+      } else {
+        List<Password> toRemove = [];
+        result.forEach((element) {
+          if (!value.contains(element)) {
+            toRemove.add(element);
+          }
+        });
+        toRemove.forEach((element) {
+          result.remove(element);
+        });
+      }
+    });
+
+    return result;
+  }
+
+
 
   Widget getSinglePasswordField(Password pass) {
     String val = pass.isVisible ? pass.getPlainText() : List.filled(16, "•").join();
@@ -119,4 +187,48 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  Widget _fab() => FloatingActionButton(
+    child: Icon(Icons.add),
+    onPressed: () async {
+      await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddNewPasswordScreen(),
+          )
+      );
+      setState(() {});
+    },
+  );
+
+  Widget _drawer() => Drawer(
+    child: ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        DrawerHeader(
+          decoration: BoxDecoration(
+            color: Color(0xff32614f),
+          ),
+          child: Text(PersonService.person?.name??'', style: TextStyle(color: Colors.white)),
+        ),
+        ListTile(
+          title: const Text('Settings'),
+          onTap: () {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SettingsScreen(),
+                )
+            );
+          },
+        ),
+        ListTile(
+          title: const Text('Sign Out', style: TextStyle(color: Colors.redAccent),),
+          onTap: () {
+            FirebaseService.signOut();
+          },
+        ),
+      ],
+    ),
+  );
 }

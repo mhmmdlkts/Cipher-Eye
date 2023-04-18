@@ -1,4 +1,4 @@
-package com.kreiseck.ciphereye
+package com.kreiseck.ceye
 
 import io.flutter.embedding.android.FlutterActivity
 

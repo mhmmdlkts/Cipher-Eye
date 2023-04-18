@@ -20,4 +20,10 @@ class HistoryService {
     await copyHistory.init();
     await copyHistory.push();
   }
+
+  static Future<void> saveShowKey() async {
+    History copyHistory = History.create(action: 'key');
+    await copyHistory.init();
+    await copyHistory.push();
+  }
 }

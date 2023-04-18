@@ -1,6 +1,7 @@
 import 'package:cipher_eye/screens/splash_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:local_auth/local_auth.dart';
 
 import '../popup/pin_entry_popup.dart';
@@ -14,7 +15,7 @@ class FirstScreen extends StatefulWidget {
   _FirstScreenState createState() => _FirstScreenState();
 }
 
-class _FirstScreenState extends State<FirstScreen> {
+class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool showSplashScreen = true;
   bool _authenticated = false;
@@ -24,6 +25,7 @@ class _FirstScreenState extends State<FirstScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance!.addObserver(this);
     InitService.init().then((val) {
       if (mounted) setState(() { showSplashScreen = false; });
       _authenticate();
@@ -32,11 +34,29 @@ class _FirstScreenState extends State<FirstScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance!.removeObserver(this);
     Navigator.of(_dialogKey.currentContext ?? context, rootNavigator: true).pop(false);
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    print(state.name);
+    if (state == AppLifecycleState.paused) {
+      setState(() {
+        _authenticated = false;
+      });
+      _authenticate();
+    }
+  }
+
   Future<void> _authenticate() async {
+    if (kDebugMode) {
+      _authenticated = true;
+      return;
+    }
     if (kIsWeb) {
       bool result = await showDialog(
         context: context,
@@ -67,10 +87,16 @@ class _FirstScreenState extends State<FirstScreen> {
       );
 
       if (isAuthenticated) {
-        setState(() {
-          _authenticated = true;
-        });
-      } else {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.always ||
+            permission == LocationPermission.whileInUse) {
+          setState(() {
+            _authenticated = true;
+          });
+        } else {
+          permission = await Geolocator.requestPermission();
+          setState(() {});
+        }
       }
     } catch (e) {}
   }
