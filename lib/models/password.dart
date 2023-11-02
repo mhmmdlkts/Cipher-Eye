@@ -23,8 +23,12 @@ class Password {
     required String plaintText}) {
     id = FirestorePathsService.getPasswordCol().doc().id;
     purposeId = purposeIdCreate(website: website??'', username: username??'');
-    value = PasswordService.encode(plaintText);
+    setPlainText(plaintText);
     timestamp = Timestamp.now();
+  }
+
+  void setPlainText(String plaintText) {
+    value = PasswordService.encode(plaintText);
   }
 
   String purposeIdCreate({required String website, required String username}) {

@@ -15,6 +15,12 @@ class HistoryService {
     await openAppHistory.push();
   }
 
+  static Future<void> saveDeleteHistory(String passwordId) async {
+    History openAppHistory = History.create(action: 'delete', password: passwordId);
+    await openAppHistory.init();
+    await openAppHistory.push();
+  }
+
   static Future<void> saveCopyHistory(String passwordId) async {
     History copyHistory = History.create(action: 'copy', password: passwordId);
     await copyHistory.init();

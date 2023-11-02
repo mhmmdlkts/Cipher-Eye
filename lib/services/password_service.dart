@@ -48,4 +48,10 @@ class PasswordService {
     return encrypter.decrypt(encrypted, iv: _iv);
   }
 
+  static Future deletePassword(Password password) async {
+    HistoryService.saveDeleteHistory(password.id!);
+    passwords.removeWhere((element) => element.purposeId == password.purposeId);
+    await FirestorePathsService.getPasswordDoc(passwordId: password.id!).delete();
+  }
+
 }
