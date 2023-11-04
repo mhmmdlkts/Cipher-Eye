@@ -20,21 +20,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyApp extends State<MyApp> {
-  int i = 0;
   @override
   void initState() {
     super.initState();
-
-    if (!kIsWeb) {
-      // auth.FirebaseAuth.instance.signOut();
-    }
-    Future.delayed(const Duration(seconds: 3)).then((value) => {
-      if (i < 2) {
-        setState((){
-          i = 2;
-        })
-      }
-    });
   }
 
   @override
@@ -61,11 +49,7 @@ class _MyApp extends State<MyApp> {
 
                 );
               } else {
-                if (++i >= 2) {
-                  return const FirstScreen();
-                } else {
-                  return loading();
-                }
+                return const FirstScreen();
               }
             }
         )

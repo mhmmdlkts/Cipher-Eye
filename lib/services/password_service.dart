@@ -10,7 +10,7 @@ class PasswordService {
   static final List<Password> passwords = [];
   static List<Password> get newPasswords => passwords.where((pass) {return pass.isLatest;}).toList();
   static final Key _aesKey = Key.fromUtf8(SecureStorageService.key!);
-  static final IV _iv = IV.fromLength(16);
+  static final IV _iv = IV.allZerosOfLength(16);
 
   static Future<void> init() async {
     QuerySnapshot querySnapshot = await FirestorePathsService.getPasswordCol()
@@ -46,6 +46,12 @@ class PasswordService {
     final encrypter = Encrypter(AES(_aesKey));
     final encrypted = Encrypted.fromBase64(value);
     return encrypter.decrypt(encrypted, iv: _iv);
+  }
+
+  static Future deletePassword(Password password) async {
+    HistoryService.saveDeleteHistory(password.id!);
+    passwords.removeWhere((element) => element.purposeId == password.purposeId);
+    await FirestorePathsService.getPasswordDoc(passwordId: password.id!).delete();
   }
 
 }

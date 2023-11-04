@@ -3,7 +3,10 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  cloud_firestore
   desktop_webview_auth
+  firebase_auth
+  firebase_core
   flutter_secure_storage_windows
   geolocator_windows
   local_auth_windows

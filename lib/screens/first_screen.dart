@@ -21,13 +21,16 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
   bool _authenticated = false;
   final GlobalKey<State> _dialogKey = GlobalKey<State>();
 
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance!.addObserver(this);
     InitService.init().then((val) {
-      if (mounted) setState(() { showSplashScreen = false; });
+      if (mounted) {
+        setState(() {
+          showSplashScreen = false;
+        });
+      }
       _authenticate();
     });
   }
@@ -43,7 +46,6 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    print(state.name);
     if (state == AppLifecycleState.paused) {
       setState(() {
         _authenticated = false;
