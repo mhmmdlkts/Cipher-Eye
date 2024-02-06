@@ -44,5 +44,6 @@ app.*.map.json
 /android/app/release
 /lib/services/password_generator.dart
 /lib/firebase_options.dart
-/ios/Runner/GoogleService-Info.plist
+/ios_old/Runner/GoogleService-Info.plist
 /android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist

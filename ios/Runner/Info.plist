@@ -19,11 +19,11 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.0.6</string>
+	<string>0.0.7</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>7</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSBonjourServices</key>
@@ -33,11 +33,11 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>FaceID is used to securely access your account and protect your sensitive data.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We use your location to provide a personalized experience and to record location-based actions in your app&apos;s history, whether the app is in use or running in the background.</string>
+	<string>We use your location to provide a personalized experience and to record location-based actions in your app's history, whether the app is in use or running in the background.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>We use your location to provide a personalized experience and to record location-based actions in your app&apos;s history even when the app is running in the background.</string>
+	<string>We use your location to provide a personalized experience and to record location-based actions in your app's history even when the app is running in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We use your location to provide a personalized experience and to record location-based actions in your app&apos;s history when the app is in use.</string>
+	<string>We use your location to provide a personalized experience and to record location-based actions in your app's history when the app is in use.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

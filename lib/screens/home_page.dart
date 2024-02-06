@@ -7,8 +7,11 @@ import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:local_auth/local_auth.dart';
 
 import '../models/password.dart';
+import '../popup/pin_entry_popup.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -26,10 +29,18 @@ class _HomePageState extends State<HomePage> {
   bool editMode = false;
   String? searchVal;
 
+
+  @override
+  initState() {
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Color(0xff3f826a).withOpacity(0.05),
         title: Stack(
           alignment: Alignment.center,
           children: [
@@ -40,10 +51,8 @@ class _HomePageState extends State<HomePage> {
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Search',
-                  hintStyle: TextStyle(color: Colors.white),
                   border: InputBorder.none,
                 ),
-                style: TextStyle(color: Colors.white),
                 onChanged: (val) {
                   setState(() {
                     searchVal = val;
@@ -88,20 +97,25 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (scrollNotification) {
-          if (!_showSearchBar && scrollNotification.metrics.pixels < -25) {
-            setState(() {
-              _showSearchBar = true;
-            });
-          }
-          return false;
-        },
-        child: ListView.builder(
-          controller: _scrollController,
-          itemCount: passwords.length,
-          itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
-        ),
+      body: Stack(
+        children: [
+          NotificationListener<ScrollNotification>(
+            onNotification: (scrollNotification) {
+              if (!_showSearchBar && scrollNotification.metrics.pixels < -25) {
+                setState(() {
+                  _showSearchBar = true;
+                });
+              }
+              return false;
+            },
+            child: ListView.separated(
+              controller: _scrollController,
+              itemCount: passwords.length,
+              itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
+              separatorBuilder: (ctx, i) => Divider(thickness: 1, color: Colors.green.withOpacity(0.3), height: 0,),
+            ),
+          ),
+        ],
       ),
       drawer: _drawer(),
       floatingActionButton: editMode?_closeEditModeFab():_createNewFab(),
@@ -156,7 +170,8 @@ class _HomePageState extends State<HomePage> {
 
   Widget getSinglePasswordField(Password pass) {
     String val = pass.isVisible ? pass.getPlainText() : List.filled(16, "•").join();
-    return Card(
+    return Container(
+      color: Colors.green.withOpacity(0.01),
       child: InkWell(
         onLongPress: editMode?null:() {
           if (editMode) {
@@ -236,6 +251,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _createNewFab() => FloatingActionButton(
+    backgroundColor: Color(0xff32614f),
     child: Icon(Icons.add),
     onPressed: () async {
       await Navigator.push(

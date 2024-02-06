@@ -2,14 +2,19 @@ import 'package:cipher_eye/screens/first_screen.dart';
 import 'package:cipher_eye/screens/splash_screen.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'firebase_options.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FirebaseService.initializeApp();
-  runApp(const MyApp());
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -23,7 +28,15 @@ class _MyApp extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    Future.delayed(Duration(seconds: 2), () {
+      if (i < 2) {
+        setState(() {
+          i = 2;
+        });
+      }
+    });
   }
+  int i = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +47,7 @@ class _MyApp extends State<MyApp> {
           colorScheme: ColorScheme.fromSwatch().copyWith(
             primary: Color(0xff32614f),
             secondary: Color(0xff3f826a),
+            background: Color(0xffe5e5e5),
           ),
         ),
         home: StreamBuilder(
@@ -49,7 +63,11 @@ class _MyApp extends State<MyApp> {
 
                 );
               } else {
-                return const FirstScreen();
+                if (++i >= 2) {
+                  return const FirstScreen();
+                } else {
+                  return SplashScreen(freeze: false);
+                }
               }
             }
         )
