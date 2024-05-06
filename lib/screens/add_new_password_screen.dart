@@ -15,14 +15,15 @@ class AddNewPasswordScreen extends StatefulWidget {
 
 class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
 
-  TextEditingController _websiteController = TextEditingController();
-  TextEditingController _passwordController = TextEditingController();
-  TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _websiteController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   List<String> get usernames => PersonService.person.usernames;
 
   bool isLoading = false;
+  bool isFavorite = false;
 
   @override
   void initState() {
@@ -35,7 +36,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add New Password'),
+        title: const Text('Add New Password'),
       ),
       body: Form(
         key: _formKey,
@@ -44,7 +45,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Padding(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -62,7 +63,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                       );
                     }),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _usernameController,
                     decoration: InputDecoration(
@@ -77,7 +78,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                       return null;
                     },
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _websiteController,
                     decoration: InputDecoration(
@@ -92,7 +93,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                       return null;
                     },
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
                     decoration: InputDecoration(
@@ -106,7 +107,16 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                       }
                       return null;
                     },
-                  )
+                  ),
+                  const SizedBox(height: 16),
+                  Checkbox(
+                      value: isFavorite,
+                      onChanged: (val) {
+                        setState(() {
+                          isFavorite = val??false;
+                        });
+                      }
+                  ),
                 ],
               ),
             ),
@@ -122,11 +132,12 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                       website: _websiteController.text,
                       username: _usernameController.text,
                       plaintText: _passwordController.text,
+                      isFavorite: isFavorite
                     );
                     await PasswordService.addNewPassword(password);
                     await Clipboard.setData(ClipboardData(text: _passwordController.text));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
+                      const SnackBar(
                         content: Text('Password copied to clipboard!'),
                         duration: Duration(seconds: 1),
                       ),
@@ -137,8 +148,8 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                   }
                 },
                 child: Padding(
-                  padding: EdgeInsets.all(40),
-                  child: isLoading?CircularProgressIndicator(color: Colors.white):Text('Save'),
+                  padding: const EdgeInsets.all(40),
+                  child: isLoading?const CircularProgressIndicator(color: Colors.white):const Text('Save'),
                 ),
               ),
             ),

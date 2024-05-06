@@ -12,18 +12,18 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.6
-  firebase_core: ^2.25.3
-  cloud_firestore: ^4.15.2
-  firebase_auth: ^4.17.3
-  firebase_ui_auth: ^1.12.1
+  cupertino_icons: ^1.0.8
+  firebase_core: ^2.30.1
+  cloud_firestore: ^4.17.2
+  firebase_auth: ^4.19.4
+  firebase_ui_auth: ^1.14.0
   jiffy: ^6.2.1
-  geolocator: ^10.1.0
-  device_info_plus: ^9.1.2
+  geolocator: ^11.0.0
+  device_info_plus: ^10.1.0
   crypto: ^3.0.3
   encrypt: ^5.0.3
   flutter_secure_storage: ^9.0.0
-  local_auth: ^2.1.8
+  local_auth: ^2.2.0
 
 dev_dependencies:
   flutter_test:

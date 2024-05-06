@@ -6,13 +6,14 @@ import '../services/firestore_paths_service.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
-class Password {
+class Password implements Comparable<Password>{
   String? id;
   String? username;
   Timestamp? timestamp;
   String? purposeId;
   String? website;
   String? value;
+  bool isFavorite = false;
   bool isLatest = false;
   bool isVisible = false;
   String? _plainText;
@@ -20,7 +21,8 @@ class Password {
   Password.create({
     required this.website,
     required this.username,
-    required String plaintText}) {
+    required String plaintText,
+    this.isFavorite = false,}) {
     id = FirestorePathsService.getPasswordCol().doc().id;
     purposeId = purposeIdCreate(website: website??'', username: username??'');
     value = PasswordService.encode(plaintText);
@@ -56,6 +58,9 @@ class Password {
     if (o.containsKey('timestamp')) {
       timestamp = o['timestamp'];
     }
+    if (o.containsKey('isFavorite')) {
+      isFavorite = o['isFavorite'];
+    }
   }
 
   Map<String, dynamic> toJson({bool withNull = true}) {
@@ -65,6 +70,7 @@ class Password {
       'username': username,
       'purposeId': purposeId,
       'timestamp': timestamp,
+      'isFavorite': isFavorite,
     };
     if (withNull) {
       return map;
@@ -87,5 +93,16 @@ class Password {
       _plainText = PasswordService.decode(value!);
     }
     return _plainText!;
+  }
+
+  @override
+  int compareTo(Password other) {
+    if (isFavorite && !other.isFavorite) {
+      return -1;
+    }
+    if (!isFavorite && other.isFavorite) {
+      return 1;
+    }
+    return other.timestamp?.compareTo(timestamp??Timestamp(0, 0))??0;
   }
 }

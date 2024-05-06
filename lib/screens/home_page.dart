@@ -188,7 +188,7 @@ class _HomePageState extends State<HomePage> {
           }
           await Clipboard.setData(ClipboardData(text: pass.getPlainText()));
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Password copied to clipboard!'),
               duration: Duration(seconds: 1),
             ),
@@ -244,7 +244,7 @@ class _HomePageState extends State<HomePage> {
                 );
               },
               icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-            ):null
+            ):(pass.isFavorite?const Icon(Icons.star, color: Colors.yellow, size: 20):null)
         ),
       ),
     );

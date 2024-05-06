@@ -26,6 +26,7 @@ class PasswordService {
       }
       passwords.add(password);
     });
+    passwords.sort();
   }
 
   static Future addNewPassword(Password password) async {
