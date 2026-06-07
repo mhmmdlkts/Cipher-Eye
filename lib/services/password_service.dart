@@ -43,14 +43,14 @@ class PasswordService {
 
     passwords.clear();
     String? lastPurposeId;
-    querySnapshot.docs.forEach((doc) {
+    for (var doc in querySnapshot.docs) {
       Password password = Password.fromSnapshot(doc);
       if (lastPurposeId == null || lastPurposeId != password.purposeId) {
         password.isLatest = true;
         lastPurposeId = password.purposeId;
       }
       passwords.add(password);
-    });
+    }
     passwords.sort();
   }
 

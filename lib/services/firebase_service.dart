@@ -33,7 +33,7 @@ class FirebaseService {
     path: useEmulator?'$firebaseProjectName/$functionLocation}/$functionName':functionName,
   );
 
-  static initializeApp() async {
+  static Future<void> initializeApp() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );

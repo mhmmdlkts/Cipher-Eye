@@ -117,8 +117,8 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (_) => PopScope(
+        canPop: false,
         child: PinEntryPopup(key: _dialogKey),
       ),
     );
@@ -161,8 +161,8 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (ctx) => PopScope(
+        canPop: false,
         child: AlertDialog(
           title: Row(
             children: const [
@@ -219,8 +219,8 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => WillPopScope(
-        onWillPop: () async => false,
+      builder: (ctx) => PopScope(
+        canPop: false,
         child: AlertDialog(
           title: const Text('Passwörter werden gesichert …'),
           content: ValueListenableBuilder<({int done, int total})>(

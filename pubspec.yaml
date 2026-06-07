@@ -26,6 +26,11 @@ dependencies:
   jiffy: ^6.4.5
   device_info_plus: ^13.1.0
 
+  kreiseck_branding:
+    git:
+      url: https://github.com/mhmmdlkts/Kreiseck-Branding.git
+      ref: main
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

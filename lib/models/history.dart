@@ -22,7 +22,7 @@ class History {
   History.create({required this.action, this.password}) {
     timestamp = Timestamp.now();
     id = FirestorePathsService.getHistoryCol().doc().id;
-    uid = FirebaseAuth.instance.currentUser!.uid!;
+    uid = FirebaseAuth.instance.currentUser!.uid;
   }
 
   Future init() async {
@@ -49,7 +49,7 @@ class History {
         deviceInfo = '${webInfo.browserName} ${webInfo.appVersion}';
       }
     } catch (e) {
-      print('Error getting device info: $e');
+      debugPrint('Error getting device info: $e');
     }
   }
 
@@ -65,10 +65,11 @@ class History {
         HistoryService.locationDenied = false;
       }
 
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      Position position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
       location = '${position.latitude},${position.longitude}';
     } catch (e) {
-      print('Error getting location: $e');
+      debugPrint('Error getting location: $e');
     }
   }
 

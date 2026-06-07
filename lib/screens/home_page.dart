@@ -2,21 +2,17 @@ import 'dart:async';
 
 import 'package:cipher_eye/screens/add_new_password_screen.dart';
 import 'package:cipher_eye/screens/settings_screen.dart';
+import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
 import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
-import 'package:cipher_eye/services/secure_storage_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:local_auth/local_auth.dart';
+import 'package:kreiseck_branding/kreiseck_branding.dart';
 
 import '../models/password.dart';
-import '../popup/pin_entry_popup.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -48,6 +44,9 @@ class _HomePageState extends State<HomePage> {
       t.cancel();
     }
     _remaskTimers.clear();
+    _searchController.dispose();
+    _scrollController.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
@@ -68,9 +67,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: Color(0xff3f826a).withOpacity(0.05),
+        backgroundColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.05),
         title: Stack(
           alignment: Alignment.center,
           children: [
@@ -127,26 +126,24 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      body: Stack(
-        children: [
-          NotificationListener<ScrollNotification>(
-            onNotification: (scrollNotification) {
-              if (!_showSearchBar && scrollNotification.metrics.pixels < -25) {
-                setState(() {
-                  _showSearchBar = true;
-                });
-              }
-              return false;
-            },
-            child: ListView.separated(
-              controller: _scrollController,
-              itemCount: passwords.length,
-              itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
-              separatorBuilder: (ctx, i) => Divider(thickness: 1, color: Colors.green.withOpacity(0.3), height: 0,),
+      body: passwords.isEmpty
+          ? _emptyState()
+          : NotificationListener<ScrollNotification>(
+              onNotification: (scrollNotification) {
+                if (!_showSearchBar && scrollNotification.metrics.pixels < -25) {
+                  setState(() {
+                    _showSearchBar = true;
+                  });
+                }
+                return false;
+              },
+              child: ListView.separated(
+                controller: _scrollController,
+                itemCount: passwords.length,
+                itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
+                separatorBuilder: (ctx, i) => Divider(thickness: 1, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2), height: 0,),
+              ),
             ),
-          ),
-        ],
-      ),
       drawer: _drawer(),
       floatingActionButton: editMode?_closeEditModeFab():_createNewFab(),
     );
@@ -182,14 +179,14 @@ class _HomePageState extends State<HomePage> {
         result.addAll(value);
       } else {
         List<Password> toRemove = [];
-        result.forEach((element) {
+        for (var element in result) {
           if (!value.contains(element)) {
             toRemove.add(element);
           }
-        });
-        toRemove.forEach((element) {
+        }
+        for (var element in toRemove) {
           result.remove(element);
-        });
+        }
       }
     });
 
@@ -200,8 +197,8 @@ class _HomePageState extends State<HomePage> {
 
   Widget getSinglePasswordField(Password pass) {
     String val = pass.isVisible ? pass.getPlainText() : List.filled(16, "•").join();
-    return Container(
-      color: Colors.green.withOpacity(0.01),
+    return Material(
+      type: MaterialType.transparency,
       child: InkWell(
         onLongPress: editMode?null:() {
           if (editMode) {
@@ -217,11 +214,12 @@ class _HomePageState extends State<HomePage> {
           if (editMode) {
             return;
           }
-          await Clipboard.setData(ClipboardData(text: pass.getPlainText()));
-          ScaffoldMessenger.of(context).showSnackBar(
+          final messenger = ScaffoldMessenger.of(context);
+          await ClipboardService.copySensitive(pass.getPlainText());
+          messenger.showSnackBar(
             const SnackBar(
-              content: Text('Password copied to clipboard!'),
-              duration: Duration(seconds: 1),
+              content: Text('Kopiert – wird in 30 s aus der Zwischenablage gelöscht'),
+              duration: Duration(seconds: 2),
             ),
           );
         },
@@ -282,7 +280,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _createNewFab() => FloatingActionButton(
-    backgroundColor: Color(0xff32614f),
+    backgroundColor: Theme.of(context).colorScheme.primary,
     child: Icon(Icons.add),
     onPressed: () async {
       await Navigator.push(
@@ -304,6 +302,28 @@ class _HomePageState extends State<HomePage> {
     },
   );
 
+  Widget _emptyState() {
+    final searching = searchVal != null;
+    final primary = Theme.of(context).colorScheme.primary;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(searching ? Icons.search_off : Icons.lock_outline,
+              size: 64, color: primary.withValues(alpha: 0.5)),
+          const SizedBox(height: 16),
+          Text(searching ? 'Keine Treffer' : 'Noch keine Passwörter',
+              style: Theme.of(context).textTheme.titleMedium),
+          if (!searching) ...[
+            const SizedBox(height: 8),
+            Text('Tippe auf +, um dein erstes anzulegen',
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _drawer() => Drawer(
     key: _scaffoldKey,
     child: ListView(
@@ -311,9 +331,20 @@ class _HomePageState extends State<HomePage> {
       children: [
         DrawerHeader(
           decoration: BoxDecoration(
-            color: Color(0xff32614f),
+            color: Theme.of(context).colorScheme.primary,
           ),
-          child: Text(PersonService.person?.name??'', style: TextStyle(color: Colors.white)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const KreiseckLogo(color: Colors.white, height: 36),
+              const SizedBox(height: 12),
+              Text(
+                PersonService.person.name ?? '',
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
         ),
         if (!editMode)
           ListTile(

@@ -1,20 +1,41 @@
 import 'package:cipher_eye/services/history_service.dart';
 import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 
 class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
   @override
-  _SettingsScreenState createState() => _SettingsScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _keyController = TextEditingController();
+  final LocalAuthentication _localAuth = LocalAuthentication();
   bool isLoading = false;
   bool isVisible = false;
 
+  /// Requires device auth before a sensitive key action. If the device has no
+  /// lock at all, allows it (can't enforce what doesn't exist).
+  Future<bool> _reauth(String reason) async {
+    try {
+      if (!await _localAuth.isDeviceSupported()) return true;
+      return await _localAuth.authenticate(
+        localizedReason: reason,
+        biometricOnly: false,
+        persistAcrossBackgrounding: true,
+        sensitiveTransaction: true,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    _keyController.dispose();
+    super.dispose();
   }
 
   String? get key => SecureStorageService.key;
@@ -23,7 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Enter Encryption Key')),
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
           Padding(
@@ -55,10 +76,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         isLoading = true;
                       });
                       await SecureStorageService.putKey(key);
+                      if (!mounted) return;
                       _keyController.clear();
-                      setState(() {
-                        isLoading = false;
-                      });
+                      setState(() => isLoading = false);
                     } else {
                       // Show an error message
                     }
@@ -95,15 +115,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             IconButton(
               onPressed: () async {
+                if (!isVisible &&
+                    !await _reauth('Authentifiziere dich, um den Key anzuzeigen')) {
+                  return;
+                }
                 await HistoryService.saveShowKey();
-                setState(() {
-                  isVisible = !isVisible;
-                });
+                if (mounted) {
+                  setState(() => isVisible = !isVisible);
+                }
               },
               icon: Icon(isVisible?Icons.visibility:Icons.visibility_off),
             ),
             IconButton(
               onPressed: () async {
+                if (!await _reauth('Authentifiziere dich, um den Key zu löschen')) {
+                  return;
+                }
+                if (!mounted) return;
                 bool? shouldDelete = await showDialog<bool>(
                   context: context,
                   builder: (BuildContext context) {
@@ -130,10 +158,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 if (shouldDelete == true) {
                   await SecureStorageService.removeKey();
-                  setState(() {
-                    _keyController.clear();
-                    setState(() {});
-                  });
+                  if (mounted) {
+                    setState(() => _keyController.clear());
+                  }
                 }
               },
               icon: Icon(Icons.delete, color: Colors.red),

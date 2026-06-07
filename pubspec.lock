@@ -557,6 +557,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.2"
+  kreiseck_branding:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: main
+      resolved-ref: b786b96bc21ed2d70e38fd7ac81f6ea857073184
+      url: "https://github.com/mhmmdlkts/Kreiseck-Branding.git"
+    source: git
+    version: "0.1.0"
   leak_tracker:
     dependency: transitive
     description:

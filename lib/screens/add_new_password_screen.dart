@@ -2,12 +2,12 @@ import 'package:cipher_eye/models/password.dart';
 import 'package:cipher_eye/services/password_generator.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../services/clipboard_service.dart';
 import '../services/password_service.dart';
 
 class AddNewPasswordScreen extends StatefulWidget {
-  const AddNewPasswordScreen({Key? key}) : super(key: key);
+  const AddNewPasswordScreen({super.key});
 
   @override
   State<AddNewPasswordScreen> createState() => _AddNewPasswordScreenState();
@@ -30,7 +30,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    _usernameController.text = usernames.first;
+    _usernameController.text = usernames.isNotEmpty ? usernames.first : '';
     _passwordController.text = PasswordGenerator.generatePassword(
         length: passwordLength,
         incSpecialChars: includeSpecialChars
@@ -38,9 +38,17 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
   }
 
   @override
+  void dispose() {
+    _websiteController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.background,
+        backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Add New Password'),
       ),
@@ -175,28 +183,35 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    setState(() {
-                      isLoading = true;
-                    });
-                    Password password = Password.create(
+                onPressed: isLoading ? null : () async {
+                  if (!_formKey.currentState!.validate()) {
+                    return;
+                  }
+                  setState(() => isLoading = true);
+                  final messenger = ScaffoldMessenger.of(context);
+                  final navigator = Navigator.of(context);
+                  try {
+                    final password = Password.create(
                       website: _websiteController.text,
                       username: _usernameController.text,
                       plaintText: _passwordController.text,
-                      isFavorite: isFavorite
+                      isFavorite: isFavorite,
                     );
                     await PasswordService.addNewPassword(password);
-                    await Clipboard.setData(ClipboardData(text: _passwordController.text));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Password copied to clipboard!'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  }
-                  if (mounted) {
-                    Navigator.pop(context);
+                    await ClipboardService.copySensitive(_passwordController.text);
+                    messenger.showSnackBar(const SnackBar(
+                      content: Text('Gespeichert & kopiert (Zwischenablage wird in 30 s geleert)'),
+                      duration: Duration(seconds: 2),
+                    ));
+                    navigator.pop();
+                  } catch (e) {
+                    if (mounted) {
+                      setState(() => isLoading = false);
+                    }
+                    messenger.showSnackBar(const SnackBar(
+                      content: Text('Speichern fehlgeschlagen. Ist dein Encryption-Key gesetzt?'),
+                      backgroundColor: Colors.red,
+                    ));
                   }
                 },
                 child: Padding(

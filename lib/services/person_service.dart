@@ -12,14 +12,11 @@ class PersonService {
     person = Person.fromSnapshot(snapshot);
 
     _isInited = true;
-    if (now != null) {
-      print('initPerson took: ${DateTime.now().difference(now).inMilliseconds}');
-    }
   }
 
   static bool isInited() => _isInited;
 
-  static cleanPerson() {
+  static void cleanPerson() {
     _isInited = false;
   }
 }

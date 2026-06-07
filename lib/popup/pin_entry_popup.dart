@@ -2,9 +2,9 @@ import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/material.dart';
 
 class PinEntryPopup extends StatefulWidget {
-  PinEntryPopup({Key? key}) : super(key: key);
+  const PinEntryPopup({super.key});
   @override
-  _PinEntryPopupState createState() => _PinEntryPopupState();
+  State<PinEntryPopup> createState() => _PinEntryPopupState();
 }
 
 class _PinEntryPopupState extends State<PinEntryPopup> {
@@ -30,7 +30,7 @@ class _PinEntryPopupState extends State<PinEntryPopup> {
               ),
               NumericKeyboard(width: width, onNumberSelected: (value) {
                 if (value == -1) {
-                  if (enteredPin.length > 0) {
+                  if (enteredPin.isNotEmpty) {
                     setState(() {
                       enteredPin = enteredPin.substring(0, enteredPin.length - 1);
                     });
@@ -53,18 +53,18 @@ class _PinEntryPopupState extends State<PinEntryPopup> {
     );
   }
 
-  checkPin() {
-    SecureStorageService.checkPin(enteredPin).then((value) {
-      if (value) {
-        Navigator.of(context).pop(true);
-      } else {
-        clear();
-        tryRemains--;
-        if (tryRemains <= 0) {
-          Navigator.of(context).pop(false);
-        }
+  Future<void> checkPin() async {
+    final ok = await SecureStorageService.checkPin(enteredPin);
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop(true);
+    } else {
+      clear();
+      tryRemains--;
+      if (tryRemains <= 0) {
+        Navigator.of(context).pop(false);
       }
-    });
+    }
   }
 
   void clear() {
@@ -96,7 +96,7 @@ class NumericKeyboard extends StatelessWidget {
   final double width;
   final Function(int) onNumberSelected;
 
-  NumericKeyboard({required this.onNumberSelected, required this.width});
+  const NumericKeyboard({super.key, required this.onNumberSelected, required this.width});
 
   @override
   Widget build(BuildContext context) {

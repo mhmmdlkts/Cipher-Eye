@@ -1,4 +1,3 @@
-import 'package:cipher_eye/models/password.dart';
 import 'package:cipher_eye/services/history_service.dart';
 import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
@@ -25,7 +24,7 @@ class InitService {
     HistoryService.saveInitHistory();
   }
 
-  static cleanCache() {
+  static void cleanCache() {
     isInited = false;
     isIniting = false;
   }
