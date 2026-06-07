@@ -9,8 +9,33 @@ import '../models/password.dart';
 class PasswordService {
   static final List<Password> passwords = [];
   static List<Password> get newPasswords => passwords.where((pass) {return pass.isLatest;}).toList();
-  static final Key _aesKey = Key.fromUtf8(SecureStorageService.key!);
-  static final IV _iv = IV.allZerosOfLength(16);
+
+  /// Re-masks every entry. Called when the password list (re)appears and on
+  /// lock, so a revealed password is never shown again without a deliberate tap.
+  static void maskAll() {
+    for (final p in passwords) {
+      p.isVisible = false;
+    }
+  }
+
+  /// Current crypto/security version. Entries below this need migration.
+  /// v1 (legacy): AES-SIC with a fixed all-zeros IV (insecure, keystream reuse).
+  /// v2: AES-GCM with a per-entry random IV (authenticated).
+  static const int kCryptoVersion = 2;
+
+  /// Standard nonce length for AES-GCM (96 bit).
+  static const int _gcmIvLength = 12;
+
+  /// Builds the AES key from secure storage on demand. Never cached, so a key
+  /// change in settings takes effect immediately and a missing key fails loudly
+  /// instead of crashing at class-load time.
+  static Key _requireKey() {
+    final k = SecureStorageService.key;
+    if (k == null) {
+      throw StateError('Encryption key is not set');
+    }
+    return Key.fromUtf8(k);
+  }
 
   static Future<void> init() async {
     QuerySnapshot querySnapshot = await FirestorePathsService.getPasswordCol()
@@ -37,16 +62,31 @@ class PasswordService {
     password.push();
   }
 
-  static String encode(String value) {
-    final encrypter = Encrypter(AES(_aesKey));
-    final encrypted = encrypter.encrypt(value, iv: _iv);
-    return encrypted.base64;
+  /// Encrypts [value] with the current scheme (AES-GCM, random IV).
+  /// Returns the ciphertext and the IV (both base64); both belong in the doc.
+  static ({String value, String iv}) encode(String value) {
+    final iv = IV.fromSecureRandom(_gcmIvLength);
+    final encrypter = Encrypter(AES(_requireKey(), mode: AESMode.gcm));
+    final encrypted = encrypter.encrypt(value, iv: iv);
+    return (value: encrypted.base64, iv: iv.base64);
   }
 
-  static String decode(String value) {
-    final encrypter = Encrypter(AES(_aesKey));
-    final encrypted = Encrypted.fromBase64(value);
-    return encrypter.decrypt(encrypted, iv: _iv);
+  /// Decrypts a stored value, handling both the new (v2, GCM) and the
+  /// legacy (v1, AES-SIC with a fixed zero IV) format. The per-entry [v]
+  /// field decides which path is used — never a profile-level flag.
+  static String decode({required String value, String? iv, int? v}) {
+    if ((v ?? 1) >= kCryptoVersion && iv != null) {
+      final encrypter = Encrypter(AES(_requireKey(), mode: AESMode.gcm));
+      return encrypter.decrypt(Encrypted.fromBase64(value), iv: IV.fromBase64(iv));
+    }
+    return _decodeLegacy(value);
+  }
+
+  /// Byte-compatible with the original implementation: AES default mode (SIC)
+  /// + PKCS7 padding + all-zeros IV. Only used to read pre-migration data.
+  static String _decodeLegacy(String value) {
+    final encrypter = Encrypter(AES(_requireKey()));
+    return encrypter.decrypt(Encrypted.fromBase64(value), iv: IV.allZerosOfLength(16));
   }
 
   static Future deletePassword(Password password) async {

@@ -24,17 +24,23 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
 
   bool isLoading = false;
   bool isFavorite = false;
+  bool includeSpecialChars = true;
+  int passwordLength = 24;
 
   @override
   void initState() {
     super.initState();
     _usernameController.text = usernames.first;
-    _passwordController.text = PasswordGenerator.generatePassword();
+    _passwordController.text = PasswordGenerator.generatePassword(
+        length: passwordLength,
+        incSpecialChars: includeSpecialChars
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         title: const Text('Add New Password'),
       ),
@@ -109,14 +115,60 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Checkbox(
-                      value: isFavorite,
-                      onChanged: (val) {
-                        setState(() {
-                          isFavorite = val??false;
-                        });
-                      }
+                  SwitchListTile(
+                    title: const Text('Sonderzeichen einschließen'),
+                    value: includeSpecialChars,
+                    onChanged: isLoading ? null : (val) {
+                      setState(() {
+                        includeSpecialChars = val;
+                        _passwordController.text = PasswordGenerator.generatePassword(
+                          length: passwordLength.toInt(),
+                          incSpecialChars: includeSpecialChars
+                        );
+                      });
+                    },
                   ),
+                  const SizedBox(height: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Passwortlänge:'),
+                      Slider(
+                        value: passwordLength.toDouble(),
+                        min: 8,
+                        max: 32,
+                        divisions: 24,
+                        label: passwordLength.toInt().toString(),
+                        onChanged: isLoading ? null : (val) {
+                          int newLength = val.toInt();
+                          if (passwordLength == newLength) {
+                            return;
+                          }
+                          setState(() {
+                            passwordLength = newLength;
+                            _passwordController.text = PasswordGenerator.generatePassword(
+                              length: newLength,
+                              incSpecialChars: includeSpecialChars
+                            );
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Checkbox(
+                          value: isFavorite,
+                          onChanged: (val) {
+                            setState(() {
+                              isFavorite = val??false;
+                            });
+                          }
+                      ),
+                      const Text('Favorite'),
+                    ],
+                  )
                 ],
               ),
             ),

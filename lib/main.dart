@@ -44,12 +44,22 @@ class _MyApp extends State<MyApp> {
         debugShowCheckedModeBanner: false,
         title: 'Cipher Eye',
         theme: ThemeData(
+          brightness: Brightness.light,
           colorScheme: ColorScheme.fromSwatch().copyWith(
-            primary: Color(0xff32614f),
-            secondary: Color(0xff3f826a),
-            background: Color(0xffe5e5e5),
+            primary: const Color(0xff32614f),
+            secondary: const Color(0xff3f826a),
+            background: const Color(0xffe5e5e5),
           ),
         ),
+        darkTheme: ThemeData(
+          brightness: Brightness.dark,
+          colorScheme: ColorScheme.fromSwatch(brightness: Brightness.dark).copyWith(
+            primary: const Color(0xff7bbca3),
+            secondary: const Color(0xff99e8ca),
+            background: const Color(0xff1a1a1a),
+          ),
+        ),
+        themeMode: ThemeMode.system, // nutzt automatisch das
         home: StreamBuilder(
             stream: auth.FirebaseAuth.instance.authStateChanges(),
             builder: (context, snapshot) {

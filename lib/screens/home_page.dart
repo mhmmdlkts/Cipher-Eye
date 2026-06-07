@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cipher_eye/screens/add_new_password_screen.dart';
 import 'package:cipher_eye/screens/settings_screen.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
@@ -29,16 +31,44 @@ class _HomePageState extends State<HomePage> {
   bool editMode = false;
   String? searchVal;
 
+  static const Duration _remaskAfter = Duration(seconds: 20);
+  final Map<String, Timer> _remaskTimers = {};
 
   @override
   initState() {
     super.initState();
+    // Whenever the list (re)appears — cold start, after unlock, returning from
+    // another screen — start with every password masked.
+    PasswordService.maskAll();
+  }
+
+  @override
+  void dispose() {
+    for (final t in _remaskTimers.values) {
+      t.cancel();
+    }
+    _remaskTimers.clear();
+    super.dispose();
+  }
+
+  /// Auto-hides a revealed password again after a short delay, so it is never
+  /// left visible on screen indefinitely.
+  void _scheduleRemask(Password pass) {
+    _remaskTimers.remove(pass.id)?.cancel();
+    if (pass.isVisible) {
+      _remaskTimers[pass.id!] = Timer(_remaskAfter, () {
+        _remaskTimers.remove(pass.id);
+        if (mounted) {
+          setState(() => pass.isVisible = false);
+        }
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         backgroundColor: Color(0xff3f826a).withOpacity(0.05),
         title: Stack(
@@ -181,6 +211,7 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             pass.isVisible = !pass.isVisible;
           });
+          _scheduleRemask(pass);
         },
         onTap: editMode?null:() async {
           if (editMode) {

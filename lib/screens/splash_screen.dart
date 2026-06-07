@@ -20,7 +20,7 @@ class _SplashScreenState extends State<SplashScreen> {
     return Container(
       width: MediaQuery.of(context).size.width,
       height: MediaQuery.of(context).size.height,
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.background,
       child: Center(
         child: widget.freeze?Container():const CircularProgressIndicator(),
       ),

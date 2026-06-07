@@ -1,9 +1,9 @@
 name: cipher_eye
-description: A new Flutter project.
+description: A Kreiseck project.
 
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.6+6
 
 environment:
   sdk: '>=3.2.3 <4.0.0'
@@ -12,24 +12,25 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
-  firebase_core: ^2.30.1
-  cloud_firestore: ^4.17.2
-  firebase_auth: ^4.19.4
-  firebase_ui_auth: ^1.14.0
-  jiffy: ^6.2.1
-  geolocator: ^11.0.0
-  device_info_plus: ^10.1.0
-  crypto: ^3.0.3
+  cupertino_icons: ^1.0.9
+  firebase_core: ^4.10.0
+  cloud_firestore: ^6.5.0
+  firebase_auth: ^6.5.2
+  firebase_ui_auth: ^3.0.1
+  geolocator: ^14.0.2
+  crypto: ^3.0.7
   encrypt: ^5.0.3
-  flutter_secure_storage: ^9.0.0
-  local_auth: ^2.2.0
+  flutter_secure_storage: ^10.3.1
+  local_auth: ^3.0.1
+
+  jiffy: ^6.4.5
+  device_info_plus: ^13.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^3.0.1
+  flutter_lints: ^6.0.0
 
 flutter:
 

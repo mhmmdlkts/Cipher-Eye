@@ -7,6 +7,12 @@ class Person {
   String? name;
   List<String> usernames = [];
 
+  /// Aggregate crypto/security version of this profile. Only bumped to the
+  /// current version once every password entry has been migrated. Used as a
+  /// fast "all migrated" check on launch — decryption always relies on the
+  /// per-password [Password.v], never on this flag.
+  int securityVersion = 1;
+
   Person.fromSnapshot(DocumentSnapshot<Object?> snap) {
     if (snap.data() == null) {
       return;
@@ -24,12 +30,16 @@ class Person {
       List<dynamic> a = o['usernames'];
       usernames = a.map((e) => e.toString()).toList();
     }
+    if (o.containsKey('securityVersion')) {
+      securityVersion = (o['securityVersion'] as num).toInt();
+    }
   }
 
   Map<String, dynamic> toJson({bool withNull = true}) {
     Map<String, dynamic> map = {
       'name': name,
       'usernames': usernames,
+      'securityVersion': securityVersion,
     };
     if (withNull) {
       return map;
