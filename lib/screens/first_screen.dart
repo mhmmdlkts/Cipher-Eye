@@ -97,6 +97,11 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
 
   Future<bool> _authNative() async {
     try {
+      // No biometrics AND no device PIN/pattern/password → nothing to
+      // authenticate against; don't lock the user out of their own app.
+      if (!await _localAuth.isDeviceSupported()) {
+        return true;
+      }
       return await _localAuth.authenticate(
         localizedReason: 'Bitte authentifiziere dich, um Cipher Eye zu entsperren',
         biometricOnly: false,
