@@ -121,6 +121,7 @@ class _HomePageState extends State<HomePage> {
           if (_showSearchBar)
             IconButton(
               icon: Icon(Icons.clear),
+              tooltip: 'Suche schließen',
               onPressed: () {
                 setState(() {
                   _searchController.clear();
@@ -132,6 +133,7 @@ class _HomePageState extends State<HomePage> {
           if (!_showSearchBar)
             IconButton(
               icon: Icon(Icons.search),
+              tooltip: 'Suchen',
               onPressed: () {
                 setState(() {
                   _showSearchBar = true;
@@ -217,24 +219,21 @@ class _HomePageState extends State<HomePage> {
 
 
 
+  void _toggleReveal(Password pass) {
+    if (!pass.isVisible && !_hasKey) {
+      _warnNoKey();
+      return;
+    }
+    setState(() => pass.isVisible = !pass.isVisible);
+    _scheduleRemask(pass);
+  }
+
   Widget getSinglePasswordField(Password pass) {
     String val = pass.isVisible ? pass.getPlainText() : List.filled(16, "•").join();
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
-        onLongPress: editMode?null:() {
-          if (editMode) {
-            return;
-          }
-          if (!pass.isVisible && !_hasKey) {
-            _warnNoKey();
-            return;
-          }
-          setState(() {
-            pass.isVisible = !pass.isVisible;
-          });
-          _scheduleRemask(pass);
-        },
+        onLongPress: editMode ? null : () => _toggleReveal(pass),
         onTap: editMode?null:() async {
           if (editMode) {
             return;
@@ -260,12 +259,33 @@ class _HomePageState extends State<HomePage> {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(pass.website!),
-                Text(val)
+                Text(pass.website ?? ''),
+                Row(
+                  children: [
+                    Expanded(child: Text(val)),
+                    if (!editMode)
+                      InkWell(
+                        onTap: () => _toggleReveal(pass),
+                        customBorder: const CircleBorder(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            pass.isVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            size: 18,
+                            semanticLabel:
+                                pass.isVisible ? 'Verbergen' : 'Anzeigen',
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
             subtitle: Text(pass.username!),
             trailing: editMode?IconButton(
+              tooltip: 'Löschen',
               onPressed: () async {
                 showDialog(
                     context: context,

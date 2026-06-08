@@ -14,7 +14,8 @@ class _PinEntryPopupState extends State<PinEntryPopup> {
 
   @override
   Widget build(BuildContext context) {
-    double width = 400;
+    final double width =
+        (MediaQuery.of(context).size.width - 80).clamp(220.0, 360.0);
     return AlertDialog(
       content: Padding(
         padding: EdgeInsets.symmetric(vertical: 25, horizontal: 5),

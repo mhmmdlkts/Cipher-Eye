@@ -70,18 +70,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: !isValid||isLoading?null:() async {
-                    String key = _keyController.text.trim();
-                    if (key.length == 32) {
-                      setState(() {
-                        isLoading = true;
-                      });
-                      await SecureStorageService.putKey(key);
-                      if (!mounted) return;
-                      _keyController.clear();
-                      setState(() => isLoading = false);
-                    } else {
-                      // Show an error message
-                    }
+                    final key = _keyController.text.trim();
+                    if (key.length != 32) return;
+                    setState(() => isLoading = true);
+                    await SecureStorageService.putKey(key);
+                    if (!mounted) return;
+                    _keyController.clear();
+                    setState(() => isLoading = false);
                   },
                   child: Padding(
                     padding: EdgeInsets.all(40),
