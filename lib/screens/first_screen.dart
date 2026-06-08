@@ -321,37 +321,46 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: _lockBackground,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            const Spacer(),
-            Icon(Icons.lock_outline,
-                size: 76, color: Colors.white.withValues(alpha: 0.9)),
-            const SizedBox(height: 20),
-            const Text(
-              'Gesperrt',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 28),
-            OutlinedButton.icon(
-              onPressed: _authInProgress ? null : _authenticate,
-              icon: const Icon(Icons.lock_open, color: Colors.white),
-              label: const Text('Entsperren',
-                  style: TextStyle(color: Colors.white)),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30)),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_outline,
+                      size: 76, color: Colors.white.withValues(alpha: 0.9)),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Gesperrt',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 28),
+                  OutlinedButton.icon(
+                    onPressed: _authInProgress ? null : _authenticate,
+                    icon: const Icon(Icons.lock_open, color: Colors.white),
+                    label: const Text('Entsperren',
+                        style: TextStyle(color: Colors.white)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30)),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const Spacer(),
-            const Padding(
-              padding: EdgeInsets.only(bottom: 32),
-              child: KreiseckLogo(color: Colors.white, height: 26),
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 32),
+                child: KreiseckLogo(color: Colors.white, height: 30),
+              ),
             ),
           ],
         ),

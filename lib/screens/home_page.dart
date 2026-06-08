@@ -1,7 +1,10 @@
 import 'package:cipher_eye/screens/add_new_password_screen.dart';
 import 'package:cipher_eye/screens/password_detail_screen.dart';
 import 'package:cipher_eye/screens/settings_screen.dart';
+import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
+import 'package:cipher_eye/services/history_service.dart';
+import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +29,13 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool _showSearchBar = false;
   bool editMode = false;
   String? searchVal;
+
+  @override
+  void initState() {
+    super.initState();
+    // Reset any previously revealed password when the list (re)appears.
+    PasswordService.maskAll();
+  }
 
   @override
   void dispose() {
@@ -193,7 +203,9 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget getSinglePasswordField(Password pass) {
     final scheme = Theme.of(context).colorScheme;
+    final value = pass.isVisible ? pass.decrypted() : '••••••••••';
     return ListTile(
+      isThreeLine: true,
       onTap: editMode
           ? null
           : () => Navigator.push(
@@ -210,17 +222,65 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
       ),
       title: Text(pass.website ?? ''),
-      subtitle: Text(pass.username ?? ''),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if ((pass.username ?? '').isNotEmpty)
+            Text(pass.username!,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+          Text(value, style: const TextStyle(letterSpacing: 1.5)),
+        ],
+      ),
       trailing: editMode
           ? IconButton(
               tooltip: 'Löschen',
               icon: const Icon(Icons.delete, color: Colors.red, size: 20),
               onPressed: () => _confirmDelete(pass),
             )
-          : (pass.isFavorite
-              ? const Icon(Icons.star, color: Colors.amber, size: 20)
-              : Icon(Icons.chevron_right, color: scheme.onSurfaceVariant)),
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: pass.isVisible ? 'Verbergen' : 'Anzeigen',
+                  icon: Icon(
+                      pass.isVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      size: 20),
+                  onPressed: () => _toggleReveal(pass),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Kopieren',
+                  icon: const Icon(Icons.content_copy, size: 18),
+                  onPressed: () => _copyFromList(pass),
+                ),
+              ],
+            ),
     );
+  }
+
+  void _toggleReveal(Password pass) {
+    if (!pass.isVisible && !_hasKey) {
+      _warnNoKey();
+      return;
+    }
+    setState(() => pass.isVisible = !pass.isVisible);
+  }
+
+  Future<void> _copyFromList(Password pass) async {
+    if (!_hasKey) {
+      _warnNoKey();
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    await ClipboardService.copySensitive(pass.decrypted());
+    HistoryService.saveCopyHistory(pass.id!);
+    messenger.showSnackBar(const SnackBar(
+      content: Text('Kopiert – wird in 30 s aus der Zwischenablage gelöscht'),
+      duration: Duration(seconds: 2),
+    ));
   }
 
   void _confirmDelete(Password pass) {

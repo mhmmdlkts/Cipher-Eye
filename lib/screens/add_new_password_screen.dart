@@ -47,6 +47,16 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     super.dispose();
   }
 
+  void _setLength(int length) {
+    setState(() {
+      passwordLength = length.clamp(8, 32);
+      _passwordController.text = PasswordGenerator.generatePassword(
+        length: passwordLength,
+        incSpecialChars: includeSpecialChars,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -127,31 +137,40 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      const Text('Passwortlänge:'),
-                      Slider(
-                        value: passwordLength.toDouble(),
-                        min: 8,
-                        max: 32,
-                        divisions: 24,
-                        label: passwordLength.toInt().toString(),
-                        onChanged: isLoading ? null : (val) {
-                          int newLength = val.toInt();
-                          if (passwordLength == newLength) {
-                            return;
-                          }
-                          setState(() {
-                            passwordLength = newLength;
-                            _passwordController.text = PasswordGenerator.generatePassword(
-                              length: newLength,
-                              incSpecialChars: includeSpecialChars
-                            );
-                          });
-                        },
+                      const Text('Passwortlänge'),
+                      const Spacer(),
+                      IconButton.filledTonal(
+                        onPressed: isLoading || passwordLength <= 8
+                            ? null
+                            : () => _setLength(passwordLength - 1),
+                        icon: const Icon(Icons.remove),
+                      ),
+                      SizedBox(
+                        width: 44,
+                        child: Center(
+                          child: Text('$passwordLength',
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      IconButton.filledTonal(
+                        onPressed: isLoading || passwordLength >= 32
+                            ? null
+                            : () => _setLength(passwordLength + 1),
+                        icon: const Icon(Icons.add),
                       ),
                     ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed:
+                          isLoading ? null : () => _setLength(passwordLength),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Neu generieren'),
+                    ),
                   ),
                 ],
               ),
