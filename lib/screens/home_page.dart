@@ -12,6 +12,7 @@ import 'package:kreiseck_branding/kreiseck_branding.dart';
 
 import '../models/password.dart';
 import '../providers/key_provider.dart';
+import '../providers/passwords_provider.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -176,8 +177,9 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   List<Password> get passwords {
+    final base = ref.watch(passwordsProvider);
     if (searchVal == null) {
-      return PasswordService.newPasswords;
+      return base;
     }
     String specialChars = "+`-*/()&%§!?\$#@^_~|{}[]:;,<>.=";
     List<String> srcValList = searchVal!.split(' ').where((element) => element.isNotEmpty).toList();
@@ -186,7 +188,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       for (String c in specialChars.characters) {
         srcVal = srcVal.replaceAll(c, "").toUpperCase();
       }
-      resultMap[srcVal] = PasswordService.newPasswords.where((element) {
+      resultMap[srcVal] = base.where((element) {
         if (element.website == null || element.username == null) {
           return true;
         }
@@ -313,8 +315,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                           TextButton(
                             onPressed: () async {
                               Navigator.pop(context);
-                              await PasswordService.deletePassword(pass);
-                              setState(() {});
+                              await ref
+                                  .read(passwordsProvider.notifier)
+                                  .delete(pass);
                             },
                             child: Text('Löschen'),
                           ),
@@ -344,7 +347,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             builder: (context) => AddNewPasswordScreen(),
           )
       );
-      setState(() {});
     },
   );
 

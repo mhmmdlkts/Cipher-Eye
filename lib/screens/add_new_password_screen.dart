@@ -2,19 +2,21 @@ import 'package:cipher_eye/models/password.dart';
 import 'package:cipher_eye/services/password_generator.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/passwords_provider.dart';
 import '../services/clipboard_service.dart';
-import '../services/password_service.dart';
 import '../widgets/app_text_field.dart';
 
-class AddNewPasswordScreen extends StatefulWidget {
+class AddNewPasswordScreen extends ConsumerStatefulWidget {
   const AddNewPasswordScreen({super.key});
 
   @override
-  State<AddNewPasswordScreen> createState() => _AddNewPasswordScreenState();
+  ConsumerState<AddNewPasswordScreen> createState() =>
+      _AddNewPasswordScreenState();
 }
 
-class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
+class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
 
   final TextEditingController _websiteController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -186,7 +188,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                       plaintText: _passwordController.text,
                       isFavorite: isFavorite,
                     );
-                    await PasswordService.addNewPassword(password);
+                    await ref.read(passwordsProvider.notifier).add(password);
                     await ClipboardService.copySensitive(_passwordController.text);
                     messenger.showSnackBar(const SnackBar(
                       content: Text('Gespeichert & kopiert (Zwischenablage wird in 30 s geleert)'),
