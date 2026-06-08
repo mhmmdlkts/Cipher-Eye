@@ -1,6 +1,7 @@
 import 'package:cipher_eye/screens/splash_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:kreiseck_branding/kreiseck_branding.dart';
 import 'package:local_auth/local_auth.dart';
 
 import '../popup/pin_entry_popup.dart';
@@ -305,10 +306,12 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     return HomePage();
   }
 
+  static const Color _lockBackground = Color(0xff121212);
+
   Widget _coverScreen() {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      body: const Center(
+    return const Scaffold(
+      backgroundColor: _lockBackground,
+      body: Center(
         child: Icon(Icons.remove_red_eye, size: 96, color: Colors.white),
       ),
     );
@@ -316,27 +319,39 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
 
   Widget _lockScreen() {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      body: Center(
+      backgroundColor: _lockBackground,
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.remove_red_eye, size: 96, color: Colors.white),
-            const SizedBox(height: 24),
+            const Spacer(),
+            Icon(Icons.lock_outline,
+                size: 76, color: Colors.white.withValues(alpha: 0.9)),
+            const SizedBox(height: 20),
             const Text(
               'Gesperrt',
-              style: TextStyle(color: Colors.white, fontSize: 20),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             OutlinedButton.icon(
               onPressed: _authInProgress ? null : _authenticate,
               icon: const Icon(Icons.lock_open, color: Colors.white),
               label: const Text('Entsperren',
                   style: TextStyle(color: Colors.white)),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30)),
               ),
+            ),
+            const Spacer(),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 32),
+              child: KreiseckLogo(color: Colors.white, height: 26),
             ),
           ],
         ),

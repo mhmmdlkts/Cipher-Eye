@@ -1,10 +1,7 @@
-import 'dart:async';
-
 import 'package:cipher_eye/screens/add_new_password_screen.dart';
+import 'package:cipher_eye/screens/password_detail_screen.dart';
 import 'package:cipher_eye/screens/settings_screen.dart';
-import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
-import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,41 +27,12 @@ class _HomePageState extends ConsumerState<HomePage> {
   bool editMode = false;
   String? searchVal;
 
-  static const Duration _remaskAfter = Duration(seconds: 20);
-  final Map<String, Timer> _remaskTimers = {};
-
-  @override
-  initState() {
-    super.initState();
-    // Whenever the list (re)appears — cold start, after unlock, returning from
-    // another screen — start with every password masked.
-    PasswordService.maskAll();
-  }
-
   @override
   void dispose() {
-    for (final t in _remaskTimers.values) {
-      t.cancel();
-    }
-    _remaskTimers.clear();
     _searchController.dispose();
     _scrollController.dispose();
     focusNode.dispose();
     super.dispose();
-  }
-
-  /// Auto-hides a revealed password again after a short delay, so it is never
-  /// left visible on screen indefinitely.
-  void _scheduleRemask(Password pass) {
-    _remaskTimers.remove(pass.id)?.cancel();
-    if (pass.isVisible) {
-      _remaskTimers[pass.id!] = Timer(_remaskAfter, () {
-        _remaskTimers.remove(pass.id);
-        if (mounted) {
-          setState(() => pass.isVisible = false);
-        }
-      });
-    }
   }
 
   bool get _hasKey => ref.read(keyProvider) != null;
@@ -223,112 +191,65 @@ class _HomePageState extends ConsumerState<HomePage> {
 
 
 
-  void _toggleReveal(Password pass) {
-    if (!pass.isVisible && !_hasKey) {
-      _warnNoKey();
-      return;
-    }
-    setState(() => pass.isVisible = !pass.isVisible);
-    _scheduleRemask(pass);
+  Widget getSinglePasswordField(Password pass) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      onTap: editMode
+          ? null
+          : () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => PasswordDetailScreen(pass)),
+              ),
+      leading: CircleAvatar(
+        backgroundColor: scheme.primary.withValues(alpha: 0.12),
+        child: Text(
+          (pass.website?.isNotEmpty ?? false)
+              ? pass.website![0].toUpperCase()
+              : '?',
+          style: TextStyle(color: scheme.primary, fontWeight: FontWeight.bold),
+        ),
+      ),
+      title: Text(pass.website ?? ''),
+      subtitle: Text(pass.username ?? ''),
+      trailing: editMode
+          ? IconButton(
+              tooltip: 'Löschen',
+              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+              onPressed: () => _confirmDelete(pass),
+            )
+          : (pass.isFavorite
+              ? const Icon(Icons.star, color: Colors.amber, size: 20)
+              : Icon(Icons.chevron_right, color: scheme.onSurfaceVariant)),
+    );
   }
 
-  Widget getSinglePasswordField(Password pass) {
-    String val = pass.isVisible ? pass.getPlainText() : List.filled(16, "•").join();
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onLongPress: editMode ? null : () => _toggleReveal(pass),
-        onTap: editMode?null:() async {
-          if (editMode) {
-            return;
-          }
-          if (!_hasKey) {
-            _warnNoKey();
-            return;
-          }
-          final messenger = ScaffoldMessenger.of(context);
-          await ClipboardService.copySensitive(pass.getPlainText());
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Kopiert – wird in 30 s aus der Zwischenablage gelöscht'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-        child: ListTile(
-          /*leading: CircleAvatar(
-            backgroundImage: NetworkImage('https://your_image_provider.com/${pass.website}.png'),
-            backgroundColor: Colors.transparent,
-          ),*/
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(pass.website ?? ''),
-                Row(
-                  children: [
-                    Expanded(child: Text(val)),
-                    if (!editMode)
-                      InkWell(
-                        onTap: () => _toggleReveal(pass),
-                        customBorder: const CircleBorder(),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4),
-                          child: Icon(
-                            pass.isVisible
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            size: 18,
-                            semanticLabel:
-                                pass.isVisible ? 'Verbergen' : 'Anzeigen',
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            subtitle: Text(pass.username!),
-            trailing: editMode?IconButton(
-              tooltip: 'Löschen',
-              onPressed: () async {
-                showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: Text('Passwort löschen'),
-                        content: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Möchtest du dieses Passwort wirklich löschen?'),
-                            Container(height: 10),
-                            Text(pass.website!, style: TextStyle(fontWeight: FontWeight.bold),),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                            child: Text('Abbrechen'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              await ref
-                                  .read(passwordsProvider.notifier)
-                                  .delete(pass);
-                            },
-                            child: Text('Löschen'),
-                          ),
-                        ],
-                      );
-                    }
-                );
-              },
-              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-            ):(pass.isFavorite?const Icon(Icons.star, color: Colors.yellow, size: 20):null)
+  void _confirmDelete(Password pass) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Passwort löschen'),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Möchtest du dieses Passwort wirklich löschen?'),
+            const SizedBox(height: 10),
+            Text(pass.website ?? '',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
         ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(passwordsProvider.notifier).delete(pass);
+            },
+            child: const Text('Löschen'),
+          ),
+        ],
       ),
     );
   }

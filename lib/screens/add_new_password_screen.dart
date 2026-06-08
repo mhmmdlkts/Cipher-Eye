@@ -26,7 +26,6 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
   List<String> get usernames => PersonService.person.usernames;
 
   bool isLoading = false;
-  bool isFavorite = false;
   bool includeSpecialChars = true;
   int passwordLength = 24;
 
@@ -154,60 +153,59 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Checkbox(
-                          value: isFavorite,
-                          onChanged: (val) {
-                            setState(() {
-                              isFavorite = val??false;
-                            });
-                          }
-                      ),
-                      const Text('Favorit'),
-                    ],
-                  )
                 ],
               ),
             ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : () async {
-                  if (!_formKey.currentState!.validate()) {
-                    return;
-                  }
-                  setState(() => isLoading = true);
-                  final messenger = ScaffoldMessenger.of(context);
-                  final navigator = Navigator.of(context);
-                  try {
-                    final password = Password.create(
-                      website: _websiteController.text,
-                      username: _usernameController.text,
-                      plaintText: _passwordController.text,
-                      isFavorite: isFavorite,
-                    );
-                    await ref.read(passwordsProvider.notifier).add(password);
-                    await ClipboardService.copySensitive(_passwordController.text);
-                    messenger.showSnackBar(const SnackBar(
-                      content: Text('Gespeichert & kopiert (Zwischenablage wird in 30 s geleert)'),
-                      duration: Duration(seconds: 2),
-                    ));
-                    navigator.pop();
-                  } catch (e) {
-                    if (mounted) {
-                      setState(() => isLoading = false);
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : () async {
+                    if (!_formKey.currentState!.validate()) {
+                      return;
                     }
-                    messenger.showSnackBar(const SnackBar(
-                      content: Text('Speichern fehlgeschlagen. Ist dein Encryption-Key gesetzt?'),
-                      backgroundColor: Colors.red,
-                    ));
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(40),
-                  child: isLoading?const CircularProgressIndicator(color: Colors.white):const Text('Speichern'),
+                    setState(() => isLoading = true);
+                    final messenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(context);
+                    try {
+                      final password = Password.create(
+                        website: _websiteController.text,
+                        username: _usernameController.text,
+                        plaintText: _passwordController.text,
+                      );
+                      await ref.read(passwordsProvider.notifier).add(password);
+                      await ClipboardService.copySensitive(
+                          _passwordController.text);
+                      messenger.showSnackBar(const SnackBar(
+                        content: Text(
+                            'Gespeichert & kopiert (Zwischenablage wird in 30 s geleert)'),
+                        duration: Duration(seconds: 2),
+                      ));
+                      navigator.pop();
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() => isLoading = false);
+                      }
+                      messenger.showSnackBar(const SnackBar(
+                        content: Text(
+                            'Speichern fehlgeschlagen. Ist dein Encryption-Key gesetzt?'),
+                        backgroundColor: Colors.red,
+                      ));
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Speichern', style: TextStyle(fontSize: 16)),
                 ),
               ),
             ),

@@ -108,6 +108,10 @@ class Password implements Comparable<Password>{
     return _plainText!;
   }
 
+  /// Decrypts the value WITHOUT logging a copy-history event — for on-screen
+  /// display (revealing). Logging is done explicitly when the user copies.
+  String decrypted() => PasswordService.decode(value: value!, iv: iv, v: v);
+
   bool get needsMigration => v < PasswordService.kCryptoVersion;
 
   /// Re-encrypts this entry into the current scheme (v2, AES-GCM) and persists
