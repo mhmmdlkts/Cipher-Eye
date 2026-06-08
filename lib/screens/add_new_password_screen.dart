@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../services/clipboard_service.dart';
 import '../services/password_service.dart';
+import '../widgets/app_text_field.dart';
 
 class AddNewPasswordScreen extends StatefulWidget {
   const AddNewPasswordScreen({super.key});
@@ -78,49 +79,37 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                     }),
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
+                  AppTextField(
                     controller: _usernameController,
-                    decoration: InputDecoration(
-                      labelText: 'Benutzername',
-                      hintText: 'Benutzername eingeben',
-                      enabled: !isLoading
-                    ),
-                    validator: (String? value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Bitte einen Benutzernamen eingeben';
-                      }
-                      return null;
-                    },
+                    label: 'Benutzername',
+                    hint: 'Benutzername eingeben',
+                    prefixIcon: Icons.person_outline,
+                    enabled: !isLoading,
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Bitte einen Benutzernamen eingeben'
+                        : null,
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
+                  AppTextField(
                     controller: _websiteController,
-                    decoration: InputDecoration(
-                      labelText: 'Website',
-                      hintText: 'Website eingeben',
-                        enabled: !isLoading
-                    ),
-                    validator: (String? value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Bitte eine Website eingeben';
-                      }
-                      return null;
-                    },
+                    label: 'Website',
+                    hint: 'Website eingeben',
+                    prefixIcon: Icons.language,
+                    enabled: !isLoading,
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Bitte eine Website eingeben'
+                        : null,
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
+                  AppTextField(
                     controller: _passwordController,
-                    decoration: InputDecoration(
-                        labelText: 'Passwort',
-                        hintText: 'Passwort eingeben',
-                        enabled: !isLoading
-                    ),
-                    validator: (String? value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Bitte ein Passwort eingeben';
-                      }
-                      return null;
-                    },
+                    label: 'Passwort',
+                    hint: 'Passwort eingeben',
+                    prefixIcon: Icons.lock_outline,
+                    enabled: !isLoading,
+                    validator: (value) => (value == null || value.isEmpty)
+                        ? 'Bitte ein Passwort eingeben'
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   SwitchListTile(

@@ -1,16 +1,19 @@
 import 'package:cipher_eye/services/history_service.dart';
-import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 
-class SettingsScreen extends StatefulWidget {
+import '../providers/key_provider.dart';
+import '../widgets/app_text_field.dart';
+
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final TextEditingController _keyController = TextEditingController();
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool isLoading = false;
@@ -38,134 +41,120 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  String? get key => SecureStorageService.key;
+  bool get _isValid => _keyController.text.trim().length == 32;
+
+  Future<void> _save() async {
+    final key = _keyController.text.trim();
+    if (key.length != 32) return;
+    setState(() => isLoading = true);
+    await ref.read(keyProvider.notifier).setKey(key);
+    if (!mounted) return;
+    _keyController.clear();
+    setState(() => isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final key = ref.watch(keyProvider);
     return Scaffold(
-      appBar: AppBar(title: Text('Encryption-Key')),
+      appBar: AppBar(title: const Text('Encryption-Key')),
       backgroundColor: Theme.of(context).colorScheme.surface,
-      body: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: key!=null?keyPlaceHolder():TextField(
-              controller: _keyController,
-              decoration: InputDecoration(
-                labelText: 'Encryption-Key',
-                hintText: 'Deinen 32-stelligen Encryption-Key eingeben',
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            if (key != null)
+              _keyPlaceHolder(key)
+            else
+              AppTextField(
+                controller: _keyController,
+                label: 'Encryption-Key',
+                hint: 'Deinen 32-stelligen Key eingeben',
+                prefixIcon: Icons.vpn_key,
+                maxLength: 32,
+                onChanged: (_) => setState(() {}),
               ),
-              maxLength: 32,
-              onChanged: (val) {
-                setState(() {
-                });
-              },
-            ),
-          ),
-          SizedBox(height: 16),
-          Expanded(
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: SizedBox(
+            const Spacer(),
+            if (key == null)
+              SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: !isValid||isLoading?null:() async {
-                    final key = _keyController.text.trim();
-                    if (key.length != 32) return;
-                    setState(() => isLoading = true);
-                    await SecureStorageService.putKey(key);
-                    if (!mounted) return;
-                    _keyController.clear();
-                    setState(() => isLoading = false);
-                  },
+                  onPressed: !_isValid || isLoading ? null : _save,
                   child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: isLoading?CircularProgressIndicator():Text('Speichern'),
+                    padding: const EdgeInsets.all(20),
+                    child: isLoading
+                        ? const CircularProgressIndicator()
+                        : const Text('Speichern'),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-      )
+          ],
+        ),
+      ),
     );
   }
 
-  Widget keyPlaceHolder() {
+  Widget _keyPlaceHolder(String key) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Aktueller Encryption-Key:',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
+        const Text('Aktueller Encryption-Key:',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: Text(
-                isVisible?(key??''):List.filled(key?.length ?? 32, "*").join(),
+                isVisible ? key : List.filled(key.length, '*').join(),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             IconButton(
+              tooltip: isVisible ? 'Verbergen' : 'Anzeigen',
               onPressed: () async {
                 if (!isVisible &&
-                    !await _reauth('Authentifiziere dich, um den Key anzuzeigen')) {
+                    !await _reauth(
+                        'Authentifiziere dich, um den Key anzuzeigen')) {
                   return;
                 }
                 await HistoryService.saveShowKey();
-                if (mounted) {
-                  setState(() => isVisible = !isVisible);
-                }
+                if (mounted) setState(() => isVisible = !isVisible);
               },
-              icon: Icon(isVisible?Icons.visibility:Icons.visibility_off),
+              icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off),
             ),
             IconButton(
+              tooltip: 'Löschen',
               onPressed: () async {
-                if (!await _reauth('Authentifiziere dich, um den Key zu löschen')) {
+                if (!await _reauth(
+                    'Authentifiziere dich, um den Key zu löschen')) {
                   return;
                 }
                 if (!mounted) return;
-                bool? shouldDelete = await showDialog<bool>(
+                final shouldDelete = await showDialog<bool>(
                   context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: Text('Sicher?'),
-                      content: Text('Den aktuellen Encryption-Key löschen?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop(true);
-                          },
-                          child: Text('Ja'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop(false);
-                          },
-                          child: Text('Nein'),
-                        ),
-                      ],
-                    );
-                  },
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Sicher?'),
+                    content:
+                        const Text('Den aktuellen Encryption-Key löschen?'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: const Text('Ja')),
+                      TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: const Text('Nein')),
+                    ],
+                  ),
                 );
-
                 if (shouldDelete == true) {
-                  await SecureStorageService.removeKey();
-                  if (mounted) {
-                    setState(() => _keyController.clear());
-                  }
+                  await ref.read(keyProvider.notifier).removeKey();
                 }
               },
-              icon: Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete, color: Colors.red),
             ),
           ],
         ),
       ],
     );
   }
-
-  bool get isValid => _keyController.text.length == 32 && _keyController.text != key;
-
 }

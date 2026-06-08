@@ -6,20 +6,21 @@ import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
 import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
-import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kreiseck_branding/kreiseck_branding.dart';
 
 import '../models/password.dart';
+import '../providers/key_provider.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -65,7 +66,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  bool get _hasKey => SecureStorageService.key != null;
+  bool get _hasKey => ref.read(keyProvider) != null;
 
   void _warnNoKey() {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -81,6 +82,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final hasKey = ref.watch(hasKeyProvider);
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
@@ -145,7 +147,7 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Column(
         children: [
-          if (!_hasKey) _noKeyBanner(),
+          if (!hasKey) _noKeyBanner(),
           Expanded(
             child: passwords.isEmpty
                 ? _emptyState()
