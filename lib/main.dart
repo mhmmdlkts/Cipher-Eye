@@ -17,6 +17,12 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
+/// Created once (lazily, after Firebase is initialized). Caching it keeps the
+/// StreamBuilder from re-subscribing on rebuilds — otherwise a transient
+/// `waiting` state would re-mount FirstScreen and prompt for auth twice.
+final Stream<auth.User?> _authStateStream =
+    auth.FirebaseAuth.instance.authStateChanges();
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -43,7 +49,7 @@ class MyApp extends StatelessWidget {
       ),
       themeMode: ThemeMode.system,
       home: StreamBuilder<auth.User?>(
-        stream: auth.FirebaseAuth.instance.authStateChanges(),
+        stream: _authStateStream,
         builder: (context, snapshot) {
           // Waiting for the very first auth state → branded loading screen.
           if (snapshot.connectionState != ConnectionState.active) {
