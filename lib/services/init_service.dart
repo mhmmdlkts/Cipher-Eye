@@ -13,14 +13,16 @@ class InitService {
       return;
     }
     isIniting = true;
-    await SecureStorageService.init();
-    List<Future> toDo = [
-      PersonService.initPerson(),
-      PasswordService.init(),
-    ];
-    await Future.wait(toDo);
-    isInited = true;
-    isIniting = false;
+    try {
+      await SecureStorageService.init();
+      await Future.wait([
+        PersonService.initPerson(),
+        PasswordService.init(),
+      ]);
+      isInited = true;
+    } finally {
+      isIniting = false;
+    }
     HistoryService.saveInitHistory();
   }
 

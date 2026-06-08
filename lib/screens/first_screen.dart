@@ -38,6 +38,11 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() => _loaded = true);
       _runPostUnlockTasks();
+    }).catchError((Object e) {
+      // Never hang on the splash if loading fails — let the user into the
+      // (possibly empty) app instead of an infinite spinner.
+      debugPrint('InitService.init failed: $e');
+      if (mounted) setState(() => _loaded = true);
     });
     // Lock gate on cold start: prompt as soon as the first frame is up.
     WidgetsBinding.instance.addPostFrameCallback((_) => _authenticate());
@@ -73,7 +78,10 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
       if (state == AppLifecycleState.paused) {
         _leftForegroundAt ??= DateTime.now();
       }
-      if (!_obscured) {
+      // Only cover when there is actual content to hide (unlocked). While
+      // locked the lock screen already hides everything, and the auth prompt's
+      // transient `inactive` must not leave a stuck cover after unlocking.
+      if (_unlocked && !_obscured) {
         setState(() => _obscured = true);
       }
     }
@@ -87,7 +95,10 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     try {
       final ok = kIsWeb ? await _authWeb() : await _authNative();
       if (ok && mounted) {
-        setState(() => _unlocked = true);
+        setState(() {
+          _unlocked = true;
+          _obscured = false;
+        });
         _runPostUnlockTasks();
       }
     } finally {

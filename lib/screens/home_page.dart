@@ -6,6 +6,7 @@ import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
 import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
+import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/material.dart';
 import 'package:kreiseck_branding/kreiseck_branding.dart';
 
@@ -62,6 +63,20 @@ class _HomePageState extends State<HomePage> {
         }
       });
     }
+  }
+
+  bool get _hasKey => SecureStorageService.key != null;
+
+  void _warnNoKey() {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text(
+          'Kein Encryption-Key gesetzt — bitte in den Einstellungen eintragen.'),
+      action: SnackBarAction(
+        label: 'Einstellungen',
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const SettingsScreen())),
+      ),
+    ));
   }
 
   @override
@@ -126,24 +141,31 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      body: passwords.isEmpty
-          ? _emptyState()
-          : NotificationListener<ScrollNotification>(
-              onNotification: (scrollNotification) {
-                if (!_showSearchBar && scrollNotification.metrics.pixels < -25) {
-                  setState(() {
-                    _showSearchBar = true;
-                  });
-                }
-                return false;
-              },
-              child: ListView.separated(
-                controller: _scrollController,
-                itemCount: passwords.length,
-                itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
-                separatorBuilder: (ctx, i) => Divider(thickness: 1, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2), height: 0,),
-              ),
-            ),
+      body: Column(
+        children: [
+          if (!_hasKey) _noKeyBanner(),
+          Expanded(
+            child: passwords.isEmpty
+                ? _emptyState()
+                : NotificationListener<ScrollNotification>(
+                    onNotification: (scrollNotification) {
+                      if (!_showSearchBar && scrollNotification.metrics.pixels < -25) {
+                        setState(() {
+                          _showSearchBar = true;
+                        });
+                      }
+                      return false;
+                    },
+                    child: ListView.separated(
+                      controller: _scrollController,
+                      itemCount: passwords.length,
+                      itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
+                      separatorBuilder: (ctx, i) => Divider(thickness: 1, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2), height: 0,),
+                    ),
+                  ),
+          ),
+        ],
+      ),
       drawer: _drawer(),
       floatingActionButton: editMode?_closeEditModeFab():_createNewFab(),
     );
@@ -202,7 +224,10 @@ class _HomePageState extends State<HomePage> {
       child: InkWell(
         onLongPress: editMode?null:() {
           if (editMode) {
-
+            return;
+          }
+          if (!pass.isVisible && !_hasKey) {
+            _warnNoKey();
             return;
           }
           setState(() {
@@ -212,6 +237,10 @@ class _HomePageState extends State<HomePage> {
         },
         onTap: editMode?null:() async {
           if (editMode) {
+            return;
+          }
+          if (!_hasKey) {
+            _warnNoKey();
             return;
           }
           final messenger = ScaffoldMessenger.of(context);
@@ -283,6 +312,10 @@ class _HomePageState extends State<HomePage> {
     backgroundColor: Theme.of(context).colorScheme.primary,
     child: Icon(Icons.add),
     onPressed: () async {
+      if (!_hasKey) {
+        _warnNoKey();
+        return;
+      }
       await Navigator.push(
           context,
           MaterialPageRoute(
@@ -324,53 +357,83 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _noKeyBanner() => Material(
+    color: Theme.of(context).colorScheme.errorContainer,
+    child: ListTile(
+      leading: Icon(Icons.key_off,
+          color: Theme.of(context).colorScheme.onErrorContainer),
+      title: Text('Kein Encryption-Key gesetzt',
+          style: TextStyle(
+              color: Theme.of(context).colorScheme.onErrorContainer,
+              fontWeight: FontWeight.bold)),
+      subtitle: Text('Passwörter lassen sich nicht anzeigen.',
+          style:
+              TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
+      trailing: TextButton(
+        onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const SettingsScreen())),
+        child: const Text('Eintragen'),
+      ),
+    ),
+  );
+
   Widget _drawer() => Drawer(
     key: _scaffoldKey,
-    child: ListView(
-      padding: EdgeInsets.zero,
+    child: Column(
       children: [
         DrawerHeader(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primary,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              PersonService.person.name ?? '',
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.zero,
             children: [
-              const KreiseckLogo(color: Colors.white, height: 36),
-              const SizedBox(height: 12),
-              Text(
-                PersonService.person.name ?? '',
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+              if (!editMode)
+                ListTile(
+                  title: const Text('Edit'),
+                  onTap: () {
+                    setState(() {
+                      editMode = true;
+                    });
+                  },
+                ),
+              ListTile(
+                title: const Text('Settings'),
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SettingsScreen(),
+                      ));
+                },
+              ),
+              ListTile(
+                title: const Text('Sign Out',
+                    style: TextStyle(color: Colors.redAccent)),
+                onTap: () {
+                  FirebaseService.signOut();
+                },
               ),
             ],
           ),
         ),
-        if (!editMode)
-          ListTile(
-            title: const Text('Edit'),
-            onTap: () {
-              setState(() {
-                editMode = true;
-              });
-            },
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: KreiseckLogo(
+            height: 28,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : null,
           ),
-        ListTile(
-          title: const Text('Settings'),
-          onTap: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SettingsScreen(),
-                )
-            );
-          },
-        ),
-        ListTile(
-          title: const Text('Sign Out', style: TextStyle(color: Colors.redAccent),),
-          onTap: () {
-            FirebaseService.signOut();
-          },
         ),
       ],
     ),
