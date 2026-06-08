@@ -43,7 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Enter Encryption Key')),
+      appBar: AppBar(title: Text('Encryption-Key')),
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
@@ -52,8 +52,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: key!=null?keyPlaceHolder():TextField(
               controller: _keyController,
               decoration: InputDecoration(
-                labelText: 'Encryption Key',
-                hintText: 'Enter your 32-character encryption key',
+                labelText: 'Encryption-Key',
+                hintText: 'Deinen 32-stelligen Encryption-Key eingeben',
               ),
               maxLength: 32,
               onChanged: (val) {
@@ -80,7 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   child: Padding(
                     padding: EdgeInsets.all(40),
-                    child: isLoading?CircularProgressIndicator():Text('Save'),
+                    child: isLoading?CircularProgressIndicator():Text('Speichern'),
                   ),
                 ),
               ),
@@ -96,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Current Encryption Key:',
+          'Aktueller Encryption-Key:',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 8),
@@ -131,20 +131,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   context: context,
                   builder: (BuildContext context) {
                     return AlertDialog(
-                      title: Text('Are you sure?'),
-                      content: Text('Do you want to delete the current encryption key?'),
+                      title: Text('Sicher?'),
+                      content: Text('Den aktuellen Encryption-Key löschen?'),
                       actions: [
                         TextButton(
                           onPressed: () {
                             Navigator.of(context).pop(true);
                           },
-                          child: Text('Yes'),
+                          child: Text('Ja'),
                         ),
                         TextButton(
                           onPressed: () {
                             Navigator.of(context).pop(false);
                           },
-                          child: Text('No'),
+                          child: Text('Nein'),
                         ),
                       ],
                     );

@@ -50,7 +50,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
     return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Add New Password'),
+        title: const Text('Neues Passwort'),
       ),
       body: Form(
         key: _formKey,
@@ -81,13 +81,13 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                   TextFormField(
                     controller: _usernameController,
                     decoration: InputDecoration(
-                      labelText: 'Username',
-                      hintText: 'Enter username',
+                      labelText: 'Benutzername',
+                      hintText: 'Benutzername eingeben',
                       enabled: !isLoading
                     ),
                     validator: (String? value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a username';
+                        return 'Bitte einen Benutzernamen eingeben';
                       }
                       return null;
                     },
@@ -97,12 +97,12 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                     controller: _websiteController,
                     decoration: InputDecoration(
                       labelText: 'Website',
-                      hintText: 'Enter website',
+                      hintText: 'Website eingeben',
                         enabled: !isLoading
                     ),
                     validator: (String? value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a website';
+                        return 'Bitte eine Website eingeben';
                       }
                       return null;
                     },
@@ -111,13 +111,13 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                   TextFormField(
                     controller: _passwordController,
                     decoration: InputDecoration(
-                        labelText: 'Password',
-                        hintText: 'Enter password',
+                        labelText: 'Passwort',
+                        hintText: 'Passwort eingeben',
                         enabled: !isLoading
                     ),
                     validator: (String? value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a password';
+                        return 'Bitte ein Passwort eingeben';
                       }
                       return null;
                     },
@@ -174,7 +174,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                             });
                           }
                       ),
-                      const Text('Favorite'),
+                      const Text('Favorit'),
                     ],
                   )
                 ],
@@ -216,7 +216,7 @@ class _AddNewPasswordScreenState extends State<AddNewPasswordScreen> {
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(40),
-                  child: isLoading?const CircularProgressIndicator(color: Colors.white):const Text('Save'),
+                  child: isLoading?const CircularProgressIndicator(color: Colors.white):const Text('Speichern'),
                 ),
               ),
             ),

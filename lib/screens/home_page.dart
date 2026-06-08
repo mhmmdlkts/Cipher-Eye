@@ -94,7 +94,7 @@ class _HomePageState extends State<HomePage> {
                 focusNode: focusNode,
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Search',
+                  hintText: 'Suchen',
                   border: InputBorder.none,
                 ),
                 onChanged: (val) {
@@ -291,12 +291,12 @@ class _HomePageState extends State<HomePage> {
                     context: context,
                     builder: (context) {
                       return AlertDialog(
-                        title: Text('Delete Password'),
+                        title: Text('Passwort löschen'),
                         content: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('Do you really want to delete this password?'),
+                            Text('Möchtest du dieses Passwort wirklich löschen?'),
                             Container(height: 10),
                             Text(pass.website!, style: TextStyle(fontWeight: FontWeight.bold),),
                           ],
@@ -306,7 +306,7 @@ class _HomePageState extends State<HomePage> {
                             onPressed: () {
                               Navigator.pop(context);
                             },
-                            child: Text('Cancel'),
+                            child: Text('Abbrechen'),
                           ),
                           TextButton(
                             onPressed: () async {
@@ -314,7 +314,7 @@ class _HomePageState extends State<HomePage> {
                               await PasswordService.deletePassword(pass);
                               setState(() {});
                             },
-                            child: Text('Delete'),
+                            child: Text('Löschen'),
                           ),
                         ],
                       );
@@ -419,7 +419,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               if (!editMode)
                 ListTile(
-                  title: const Text('Edit'),
+                  title: const Text('Bearbeiten'),
                   onTap: () {
                     setState(() {
                       editMode = true;
@@ -427,7 +427,7 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
               ListTile(
-                title: const Text('Settings'),
+                title: const Text('Einstellungen'),
                 onTap: () {
                   Navigator.push(
                       context,
@@ -437,7 +437,7 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
               ListTile(
-                title: const Text('Sign Out',
+                title: const Text('Abmelden',
                     style: TextStyle(color: Colors.redAccent)),
                 onTap: () {
                   FirebaseService.signOut();
