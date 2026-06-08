@@ -16,6 +16,8 @@ class Password implements Comparable<Password>{
   String? iv;
   int v = 1;
   bool isFavorite = false;
+  int copyCount = 0;
+  int viewCount = 0;
   bool isLatest = false;
   bool isVisible = false;
   String? _plainText;
@@ -71,6 +73,12 @@ class Password implements Comparable<Password>{
     }
     if (o.containsKey('isFavorite')) {
       isFavorite = o['isFavorite'];
+    }
+    if (o.containsKey('copyCount')) {
+      copyCount = (o['copyCount'] as num).toInt();
+    }
+    if (o.containsKey('viewCount')) {
+      viewCount = (o['viewCount'] as num).toInt();
     }
   }
 

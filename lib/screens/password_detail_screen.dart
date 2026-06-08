@@ -5,8 +5,10 @@ import '../models/history.dart';
 import '../models/password.dart';
 import '../providers/history_provider.dart';
 import '../providers/key_provider.dart';
+import '../providers/place_provider.dart';
 import '../services/clipboard_service.dart';
 import '../services/history_service.dart';
+import '../services/password_service.dart';
 
 class PasswordDetailScreen extends ConsumerStatefulWidget {
   const PasswordDetailScreen(this.password, {super.key});
@@ -41,7 +43,8 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
       content: Text('Kopiert – wird in 30 s aus der Zwischenablage gelöscht'),
       duration: Duration(seconds: 2),
     ));
-    // Log this copy (with location) and refresh the history list below.
+    // Log this copy (with location) + count it, then refresh the history.
+    PasswordService.incrementUsage(pass.id!, copy: true);
     HistoryService.saveCopyHistory(pass.id!).whenComplete(() {
       if (mounted) ref.invalidate(passwordHistoryProvider(pass.id!));
     });
@@ -52,7 +55,14 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
       _warnNoKey();
       return;
     }
+    final revealing = !_revealed;
     setState(() => _revealed = !_revealed);
+    if (revealing) {
+      PasswordService.incrementUsage(pass.id!, copy: false);
+      HistoryService.saveViewHistory(pass.id!).whenComplete(() {
+        if (mounted) ref.invalidate(passwordHistoryProvider(pass.id!));
+      });
+    }
   }
 
   @override
@@ -87,7 +97,10 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
             ),
             data: (events) {
               final relevant = events
-                  .where((h) => h.action == 'copy' || h.action == 'create')
+                  .where((h) =>
+                      h.action == 'copy' ||
+                      h.action == 'create' ||
+                      h.action == 'view')
                   .toList();
               if (relevant.isEmpty) {
                 return const Padding(
@@ -186,7 +199,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
 
   Widget _historyTile(History h) {
     final scheme = Theme.of(context).colorScheme;
-    final DateTime? dt = h.timestamp?.toDate();
+    final dt = h.timestamp?.toDate();
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
@@ -197,28 +210,38 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
           backgroundColor: scheme.primary.withValues(alpha: 0.15),
           child: Icon(_iconFor(h.action), color: scheme.primary, size: 20),
         ),
-        title: Text(_labelFor(h.action)),
+        title: Text(dt != null ? _formatTs(dt) : 'Unbekannt',
+            style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (dt != null) Text(_formatTs(dt)),
-            if (h.location != null)
-              Row(
-                children: [
-                  const Icon(Icons.place_outlined, size: 14),
-                  const SizedBox(width: 4),
-                  Expanded(
-                      child: Text(h.location!,
-                          style: const TextStyle(fontSize: 12))),
-                ],
-              ),
+            if (h.location != null) _placeRow(h.location!),
+            if (h.ip != null) _infoRow(Icons.lan_outlined, h.ip!),
             if (h.deviceInfo != null)
-              Text(h.deviceInfo!,
-                  style:
-                      TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+              _infoRow(Icons.devices_outlined, h.deviceInfo!),
           ],
         ),
-        isThreeLine: h.location != null && h.deviceInfo != null,
+        isThreeLine: h.location != null && (h.ip != null || h.deviceInfo != null),
+      ),
+    );
+  }
+
+  Widget _placeRow(String coords) {
+    final placeAsync = ref.watch(placeProvider(coords));
+    final text = placeAsync.maybeWhen(data: (s) => s, orElse: () => coords);
+    return _infoRow(Icons.place_outlined, text);
+  }
+
+  Widget _infoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          Icon(icon,
+              size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 12))),
+        ],
       ),
     );
   }
@@ -227,6 +250,8 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     switch (action) {
       case 'copy':
         return Icons.content_copy;
+      case 'view':
+        return Icons.visibility;
       case 'create':
         return Icons.add;
       case 'delete':
@@ -235,21 +260,6 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
         return Icons.vpn_key;
       default:
         return Icons.history;
-    }
-  }
-
-  String _labelFor(String? action) {
-    switch (action) {
-      case 'copy':
-        return 'Kopiert';
-      case 'create':
-        return 'Erstellt';
-      case 'delete':
-        return 'Gelöscht';
-      case 'key':
-        return 'Key angezeigt';
-      default:
-        return action ?? 'Aktion';
     }
   }
 

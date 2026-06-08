@@ -27,6 +27,12 @@ class HistoryService {
     await copyHistory.push();
   }
 
+  static Future<void> saveViewHistory(String passwordId) async {
+    History viewHistory = History.create(action: 'view', password: passwordId);
+    await viewHistory.init();
+    await viewHistory.push();
+  }
+
   static Future<void> saveShowKey() async {
     History copyHistory = History.create(action: 'key');
     await copyHistory.init();

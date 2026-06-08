@@ -266,7 +266,12 @@ class _HomePageState extends ConsumerState<HomePage> {
       _warnNoKey();
       return;
     }
+    final revealing = !pass.isVisible;
     setState(() => pass.isVisible = !pass.isVisible);
+    if (revealing) {
+      HistoryService.saveViewHistory(pass.id!);
+      PasswordService.incrementUsage(pass.id!, copy: false);
+    }
   }
 
   Future<void> _copyFromList(Password pass) async {
@@ -277,6 +282,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final messenger = ScaffoldMessenger.of(context);
     await ClipboardService.copySensitive(pass.decrypted());
     HistoryService.saveCopyHistory(pass.id!);
+    PasswordService.incrementUsage(pass.id!, copy: true);
     messenger.showSnackBar(const SnackBar(
       content: Text('Kopiert – wird in 30 s aus der Zwischenablage gelöscht'),
       duration: Duration(seconds: 2),

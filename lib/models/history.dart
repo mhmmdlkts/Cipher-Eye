@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cipher_eye/services/history_service.dart';
@@ -18,6 +19,7 @@ class History {
   String? password;
   String? deviceInfo;
   String? userAgent;
+  String? ip;
 
   History.create({required this.action, this.password}) {
     timestamp = Timestamp.now();
@@ -28,8 +30,21 @@ class History {
   Future init() async {
     await Future.wait([
       setLocation(),
-      setDeviceInfo()
+      setDeviceInfo(),
+      setIp(),
     ]);
+  }
+
+  Future<void> setIp() async {
+    try {
+      final client = HttpClient();
+      final req = await client.getUrl(Uri.parse('https://api.ipify.org'));
+      final resp = await req.close();
+      ip = (await resp.transform(utf8.decoder).join()).trim();
+      client.close();
+    } catch (e) {
+      debugPrint('Error getting IP: $e');
+    }
   }
 
   Future<void> setDeviceInfo() async {
@@ -99,6 +114,9 @@ class History {
     if (o.containsKey('userAgent')) {
       userAgent = o['userAgent'];
     }
+    if (o.containsKey('ip')) {
+      ip = o['ip'];
+    }
   }
 
   Map<String, dynamic> toJson({bool withNull = true}) {
@@ -109,6 +127,7 @@ class History {
       'action': action,
       'deviceInfo': deviceInfo,
       'userAgent': userAgent,
+      'ip': ip,
     };
     if (withNull) {
       return map;

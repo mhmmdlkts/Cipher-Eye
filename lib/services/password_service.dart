@@ -18,6 +18,15 @@ class PasswordService {
     }
   }
 
+  /// Increments the per-password usage counter in Firestore (copyCount or
+  /// viewCount) so the most-used passwords can later be surfaced first.
+  static Future<void> incrementUsage(String passwordId,
+      {required bool copy}) async {
+    final field = copy ? 'copyCount' : 'viewCount';
+    await FirestorePathsService.getPasswordDoc(passwordId: passwordId)
+        .update({field: FieldValue.increment(1)});
+  }
+
   /// Current crypto/security version. Entries below this need migration.
   /// v1 (legacy): AES-SIC with a fixed all-zeros IV (insecure, keystream reuse).
   /// v2: AES-GCM with a per-entry random IV (authenticated).
