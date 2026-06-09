@@ -9,7 +9,10 @@ import '../services/clipboard_service.dart';
 import '../widgets/app_text_field.dart';
 
 class AddNewPasswordScreen extends ConsumerStatefulWidget {
-  const AddNewPasswordScreen({super.key});
+  const AddNewPasswordScreen({super.key, this.draft});
+
+  /// When set, this draft is being finished/edited instead of created anew.
+  final Password? draft;
 
   @override
   ConsumerState<AddNewPasswordScreen> createState() =>
@@ -29,16 +32,46 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
   bool includeSpecialChars = true;
   int passwordLength = 24;
   bool _copied = false;
+  bool _saved = false;
+  late final Password _draft;
 
   @override
   void initState() {
     super.initState();
-    _usernameController.text = usernames.isNotEmpty ? usernames.first : '';
-    _generate(rebuild: false);
+    final existing = widget.draft;
+    if (existing != null) {
+      _draft = existing;
+      _websiteController.text = existing.website ?? '';
+      _usernameController.text = existing.username ?? '';
+      try {
+        _passwordController.text = existing.decrypted();
+      } catch (_) {}
+    } else {
+      _usernameController.text = usernames.isNotEmpty ? usernames.first : '';
+      _generate(rebuild: false);
+      _draft = Password.createDraft(
+        username: _usernameController.text,
+        plaintText: _passwordController.text,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(passwordsProvider.notifier).addDraft(_draft);
+      });
+    }
   }
 
   @override
   void dispose() {
+    // Leaving without finalizing → keep the work as a draft.
+    if (!_saved) {
+      try {
+        _draft.applyEdits(
+          website: _websiteController.text,
+          username: _usernameController.text,
+          plaintText: _passwordController.text,
+        );
+        _draft.push();
+      } catch (_) {}
+    }
     _websiteController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
@@ -93,7 +126,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Neues Passwort'),
+        title: Text(widget.draft != null ? 'Entwurf bearbeiten' : 'Neues Passwort'),
       ),
       body: Form(
         key: _formKey,
@@ -242,17 +275,18 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                     final messenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(context);
                     try {
-                      final password = Password.create(
+                      _draft.applyEdits(
                         website: _websiteController.text,
                         username: _usernameController.text,
                         plaintText: _passwordController.text,
+                        finalize: true,
                       );
-                      await ref.read(passwordsProvider.notifier).add(password);
-                      await ClipboardService.copySensitive(
-                          _passwordController.text);
+                      await ref
+                          .read(passwordsProvider.notifier)
+                          .saveDraft(_draft, finalize: true);
+                      _saved = true;
                       messenger.showSnackBar(const SnackBar(
-                        content: Text(
-                            'Gespeichert & kopiert (Zwischenablage wird in 30 s geleert)'),
+                        content: Text('Gespeichert'),
                         duration: Duration(seconds: 2),
                       ));
                       navigator.pop();

@@ -18,6 +18,7 @@ class Password implements Comparable<Password>{
   bool isFavorite = false;
   int copyCount = 0;
   int viewCount = 0;
+  bool isDraft = false;
   bool isLatest = false;
   bool isVisible = false;
   String? _plainText;
@@ -33,6 +34,37 @@ class Password implements Comparable<Password>{
     value = encoded.value;
     iv = encoded.iv;
     v = PasswordService.kCryptoVersion;
+    timestamp = Timestamp.now();
+  }
+
+  /// A work-in-progress entry: a generated password, no website yet.
+  Password.createDraft({this.username, required String plaintText}) {
+    id = FirestorePathsService.getPasswordCol().doc().id;
+    website = '';
+    purposeId = purposeIdCreate(website: '', username: username ?? '');
+    final encoded = PasswordService.encode(plaintText);
+    value = encoded.value;
+    iv = encoded.iv;
+    v = PasswordService.kCryptoVersion;
+    isDraft = true;
+    timestamp = Timestamp.now();
+  }
+
+  /// Updates a draft's editable fields (re-encrypting the password). Keeps it a
+  /// draft unless [finalize] is set, which promotes it to a real entry.
+  void applyEdits({
+    required String website,
+    required String username,
+    required String plaintText,
+    bool finalize = false,
+  }) {
+    this.website = website;
+    this.username = username;
+    purposeId = purposeIdCreate(website: website, username: username);
+    final encoded = PasswordService.encode(plaintText);
+    value = encoded.value;
+    iv = encoded.iv;
+    isDraft = !finalize;
     timestamp = Timestamp.now();
   }
 
@@ -80,6 +112,9 @@ class Password implements Comparable<Password>{
     if (o.containsKey('viewCount')) {
       viewCount = (o['viewCount'] as num).toInt();
     }
+    if (o.containsKey('isDraft')) {
+      isDraft = o['isDraft'];
+    }
   }
 
   Map<String, dynamic> toJson({bool withNull = true}) {
@@ -92,6 +127,7 @@ class Password implements Comparable<Password>{
       'purposeId': purposeId,
       'timestamp': timestamp,
       'isFavorite': isFavorite,
+      'isDraft': isDraft,
     };
     if (withNull) {
       return map;
@@ -105,7 +141,8 @@ class Password implements Comparable<Password>{
     return newMap;
   }
 
-  Future push() async => await FirestorePathsService.getPasswordDoc(passwordId: id!).set(toJson());
+  Future push() async => await FirestorePathsService.getPasswordDoc(passwordId: id!)
+      .set(toJson(), SetOptions(merge: true));
   Future update() async => await FirestorePathsService.getPasswordDoc(passwordId: id!).update(toJson(withNull: false));
 
   String getPlainText() {

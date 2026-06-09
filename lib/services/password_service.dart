@@ -8,7 +8,10 @@ import '../models/password.dart';
 
 class PasswordService {
   static final List<Password> passwords = [];
-  static List<Password> get newPasswords => passwords.where((pass) {return pass.isLatest;}).toList();
+  static List<Password> get newPasswords =>
+      passwords.where((p) => p.isLatest && !p.isDraft).toList();
+  static List<Password> get drafts =>
+      passwords.where((p) => p.isDraft).toList();
 
   /// Re-masks every entry. Called when the password list (re)appears and on
   /// lock, so a revealed password is never shown again without a deliberate tap.

@@ -204,24 +204,54 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget getSinglePasswordField(Password pass) {
     final scheme = Theme.of(context).colorScheme;
     final value = pass.isVisible ? pass.decrypted() : '••••••••••';
+    final hasName = pass.website?.isNotEmpty ?? false;
     return ListTile(
       isThreeLine: true,
       onTap: editMode
           ? null
           : () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => PasswordDetailScreen(pass)),
+                MaterialPageRoute(
+                  builder: (_) => pass.isDraft
+                      ? AddNewPasswordScreen(draft: pass)
+                      : PasswordDetailScreen(pass),
+                ),
               ),
       leading: CircleAvatar(
         backgroundColor: scheme.primary.withValues(alpha: 0.12),
-        child: Text(
-          (pass.website?.isNotEmpty ?? false)
-              ? pass.website![0].toUpperCase()
-              : '?',
-          style: TextStyle(color: scheme.primary, fontWeight: FontWeight.bold),
-        ),
+        child: pass.isDraft
+            ? Icon(Icons.edit_note, color: scheme.primary)
+            : Text(
+                hasName ? pass.website![0].toUpperCase() : '?',
+                style: TextStyle(
+                    color: scheme.primary, fontWeight: FontWeight.bold),
+              ),
       ),
-      title: Text(pass.website ?? ''),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              hasName ? pass.website! : 'Unbenannter Entwurf',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (pass.isDraft) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('ENTWURF',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange)),
+            ),
+          ],
+        ],
+      ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -10,9 +10,17 @@ import '../services/password_service.dart';
 /// widgets.
 class PasswordsNotifier extends Notifier<List<Password>> {
   @override
-  List<Password> build() => PasswordService.newPasswords;
+  List<Password> build() => _combined();
 
-  void refresh() => state = PasswordService.newPasswords;
+  /// Drafts first (newest), then the latest real entries.
+  List<Password> _combined() {
+    final drafts = PasswordService.drafts
+      ..sort((a, b) => (b.timestamp?.millisecondsSinceEpoch ?? 0)
+          .compareTo(a.timestamp?.millisecondsSinceEpoch ?? 0));
+    return [...drafts, ...PasswordService.newPasswords];
+  }
+
+  void refresh() => state = _combined();
 
   Future<void> add(Password password) async {
     await PasswordService.addNewPassword(password);
@@ -22,6 +30,27 @@ class PasswordsNotifier extends Notifier<List<Password>> {
   Future<void> delete(Password password) async {
     await PasswordService.deletePassword(password);
     refresh();
+  }
+
+  /// Persist a brand-new draft (a generated password, no website yet).
+  Future<void> addDraft(Password draft) async {
+    PasswordService.passwords.add(draft);
+    refresh();
+    await draft.push();
+  }
+
+  /// Persist edits to a draft; [finalize] promotes it to a real entry and marks
+  /// it the latest version of its purpose.
+  Future<void> saveDraft(Password draft, {bool finalize = false}) async {
+    if (finalize) {
+      for (final p in PasswordService.passwords
+          .where((e) => e.purposeId == draft.purposeId && e.id != draft.id)) {
+        p.isLatest = false;
+      }
+      draft.isLatest = true;
+    }
+    refresh();
+    await draft.push();
   }
 
   /// Hide every revealed password (called when the list re-appears / on lock).
