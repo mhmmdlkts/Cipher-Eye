@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageService {
@@ -7,8 +8,16 @@ class SecureStorageService {
   static String? key;
   static String? pin;
 
+  /// On web there is no OS keychain: flutter_secure_storage falls back to
+  /// browser storage (IndexedDB/localStorage), which is readable by XSS,
+  /// extensions and dev-tools. Since the encryption key decrypts every
+  /// password, it must NEVER be persisted in the browser. On web the key
+  /// therefore lives only in memory for the session and the user re-enters the
+  /// same master key after each page reload. Native keeps using the keychain.
+  static bool get _persistKey => !kIsWeb;
+
   static Future init() async {
-    key = await _getKey();
+    key = _persistKey ? await _getKey() : null;
     pin = await _getPin();
   }
 
@@ -18,7 +27,9 @@ class SecureStorageService {
   }
 
   static Future putKey(String k) async {
-    await _secureStorage.write(key: _storageKey, value: k);
+    if (_persistKey) {
+      await _secureStorage.write(key: _storageKey, value: k);
+    }
     key = k;
   }
 
@@ -31,7 +42,9 @@ class SecureStorageService {
   }
 
   static Future removeKey() async {
-    await _secureStorage.delete(key: _storageKey);
+    if (_persistKey) {
+      await _secureStorage.delete(key: _storageKey);
+    }
     key = null;
   }
 

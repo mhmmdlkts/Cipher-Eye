@@ -1,11 +1,9 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:cipher_eye/services/history_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import '../services/firestore_paths_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -37,11 +35,10 @@ class History {
 
   Future<void> setIp() async {
     try {
-      final client = HttpClient();
-      final req = await client.getUrl(Uri.parse('https://api.ipify.org'));
-      final resp = await req.close();
-      ip = (await resp.transform(utf8.decoder).join()).trim();
-      client.close();
+      final resp = await http.get(Uri.parse('https://api.ipify.org'));
+      if (resp.statusCode == 200) {
+        ip = resp.body.trim();
+      }
     } catch (e) {
       debugPrint('Error getting IP: $e');
     }
@@ -50,18 +47,20 @@ class History {
   Future<void> setDeviceInfo() async {
     DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
     try {
-      if (Platform.isAndroid) {
-        AndroidDeviceInfo androidInfo = await deviceInfoPlugin.androidInfo;
-        userAgent = androidInfo.data.toString();
-        deviceInfo = '${androidInfo.brand} ${androidInfo.model}';
-      } else if (Platform.isIOS) {
-        IosDeviceInfo iosInfo = await deviceInfoPlugin.iosInfo;
-        userAgent = iosInfo.data.toString();
-        deviceInfo = '${iosInfo.name} ${iosInfo.systemVersion}';
-      } else if (kIsWeb) {
+      // kIsWeb must be checked first: on web `defaultTargetPlatform` can report
+      // android/iOS, but the native device_info APIs aren't available there.
+      if (kIsWeb) {
         WebBrowserInfo webInfo = await deviceInfoPlugin.webBrowserInfo;
         userAgent = webInfo.data.toString();
         deviceInfo = '${webInfo.browserName} ${webInfo.appVersion}';
+      } else if (defaultTargetPlatform == TargetPlatform.android) {
+        AndroidDeviceInfo androidInfo = await deviceInfoPlugin.androidInfo;
+        userAgent = androidInfo.data.toString();
+        deviceInfo = '${androidInfo.brand} ${androidInfo.model}';
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        IosDeviceInfo iosInfo = await deviceInfoPlugin.iosInfo;
+        userAgent = iosInfo.data.toString();
+        deviceInfo = '${iosInfo.name} ${iosInfo.systemVersion}';
       }
     } catch (e) {
       debugPrint('Error getting device info: $e');
