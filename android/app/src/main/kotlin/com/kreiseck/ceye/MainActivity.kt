@@ -1,4 +1,4 @@
-package kreiseck.ceye
+package com.kreiseck.ceye
 
 import android.os.Bundle
 import android.view.WindowManager
