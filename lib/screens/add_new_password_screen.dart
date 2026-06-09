@@ -220,27 +220,32 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    children: List<Widget>.generate(usernames.length, (int index) {
-                      return InputChip(
-                        onPressed: isLoading?null:() {
-                          setState(() {
-                            _usernameController.text = usernames[index];
-                          });
-                        },
-                        label: Text(usernames[index]),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 16),
+                  if (!_isEditVersion) ...[
+                    Wrap(
+                      spacing: 8.0,
+                      runSpacing: 4.0,
+                      children:
+                          List<Widget>.generate(usernames.length, (int index) {
+                        return InputChip(
+                          onPressed: isLoading
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _usernameController.text = usernames[index];
+                                  });
+                                },
+                          label: Text(usernames[index]),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   AppTextField(
                     controller: _usernameController,
                     label: 'Benutzername',
                     hint: 'Benutzername eingeben',
                     prefixIcon: Icons.person_outline,
-                    enabled: !isLoading,
+                    enabled: !isLoading && !_isEditVersion,
                     validator: (value) => (value == null || value.isEmpty)
                         ? 'Bitte einen Benutzernamen eingeben'
                         : null,
@@ -251,7 +256,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                     label: 'Website',
                     hint: 'Website eingeben',
                     prefixIcon: Icons.language,
-                    enabled: !isLoading,
+                    enabled: !isLoading && !_isEditVersion,
                     validator: (value) => (value == null || value.isEmpty)
                         ? 'Bitte eine Website eingeben'
                         : null,

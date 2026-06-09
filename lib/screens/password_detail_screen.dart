@@ -123,15 +123,31 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
       appBar: AppBar(
         title: Text(pass.website ?? 'Passwort'),
         actions: [
-          IconButton(
-            tooltip: 'Bearbeiten',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: _edit,
-          ),
-          IconButton(
-            tooltip: 'Löschen',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _confirmDelete,
+          PopupMenuButton<String>(
+            tooltip: 'Mehr',
+            onSelected: (v) {
+              if (v == 'edit') _edit();
+              if (v == 'delete') _confirmDelete();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'edit',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('Bearbeiten'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.delete_outline, color: Colors.redAccent),
+                  title: Text('Löschen',
+                      style: TextStyle(color: Colors.redAccent)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
