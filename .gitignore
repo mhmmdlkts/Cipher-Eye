@@ -52,3 +52,4 @@ migrate_working_dir/
 android/key.properties
 **/*.jks
 **/*.keystore
+/firebase.json
