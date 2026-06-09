@@ -311,8 +311,21 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
   Widget _coverScreen() {
     return const Scaffold(
       backgroundColor: _lockBackground,
-      body: Center(
-        child: Icon(Icons.remove_red_eye, size: 96, color: Colors.white),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Center(
+              child: Icon(Icons.remove_red_eye, size: 96, color: Colors.white),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 32),
+                child: KreiseckLogo(color: Colors.white, height: 30),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
