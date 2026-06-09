@@ -123,31 +123,29 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
       appBar: AppBar(
         title: Text(pass.website ?? 'Passwort'),
         actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Mehr',
-            onSelected: (v) {
-              if (v == 'edit') _edit();
-              if (v == 'delete') _confirmDelete();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'edit',
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.edit_outlined),
-                  title: Text('Bearbeiten'),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.delete_outline, color: Colors.redAccent),
-                  title: Text('Löschen',
-                      style: TextStyle(color: Colors.redAccent)),
-                ),
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: PopupMenuButton<String>(
+              tooltip: 'Mehr',
+              icon: const Icon(Icons.more_vert),
+              position: PopupMenuPosition.under,
+              offset: const Offset(0, 8),
+              elevation: 3,
+              color: scheme.surfaceContainerHigh,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              onSelected: (v) {
+                if (v == 'edit') _edit();
+                if (v == 'delete') _confirmDelete();
+              },
+              itemBuilder: (_) => [
+                _menuItem('edit', Icons.edit_outlined, 'Bearbeiten',
+                    scheme.onSurface),
+                const PopupMenuDivider(height: 4),
+                _menuItem('delete', Icons.delete_outline, 'Löschen',
+                    scheme.error),
+              ],
+            ),
           ),
         ],
       ),
@@ -274,6 +272,25 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _menuItem(
+      String value, IconData icon, String label, Color color) {
+    return PopupMenuItem<String>(
+      value: value,
+      height: 48,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 14),
+          Text(label,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }
