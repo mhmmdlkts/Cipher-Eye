@@ -28,15 +28,13 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
   bool isLoading = false;
   bool includeSpecialChars = true;
   int passwordLength = 24;
+  bool _copied = false;
 
   @override
   void initState() {
     super.initState();
     _usernameController.text = usernames.isNotEmpty ? usernames.first : '';
-    _passwordController.text = PasswordGenerator.generatePassword(
-        length: passwordLength,
-        incSpecialChars: includeSpecialChars
-    );
+    _generate(rebuild: false);
   }
 
   @override
@@ -47,14 +45,47 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     super.dispose();
   }
 
+  /// Generates a fresh password, fills the field, and copies it to the
+  /// clipboard right away.
+  void _generate({bool rebuild = true}) {
+    final pw = PasswordGenerator.generatePassword(
+      length: passwordLength,
+      incSpecialChars: includeSpecialChars,
+    );
+    _passwordController.text = pw;
+    ClipboardService.copySensitive(pw);
+    _copied = true;
+    if (rebuild) setState(() {});
+  }
+
   void _setLength(int length) {
-    setState(() {
-      passwordLength = length.clamp(8, 32);
-      _passwordController.text = PasswordGenerator.generatePassword(
-        length: passwordLength,
-        incSpecialChars: includeSpecialChars,
-      );
-    });
+    passwordLength = length.clamp(8, 32);
+    _generate();
+  }
+
+  Future<void> _editLength() async {
+    final controller = TextEditingController(text: '$passwordLength');
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Passwortlänge (8–32)'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Abbrechen')),
+          TextButton(
+              onPressed: () =>
+                  Navigator.pop(ctx, int.tryParse(controller.text)),
+              child: const Text('OK')),
+        ],
+      ),
+    );
+    if (result != null) _setLength(result);
   }
 
   @override
@@ -118,22 +149,41 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                     hint: 'Passwort eingeben',
                     prefixIcon: Icons.lock_outline,
                     enabled: !isLoading,
+                    onChanged: (_) {
+                      if (_copied) setState(() => _copied = false);
+                    },
                     validator: (value) => (value == null || value.isEmpty)
                         ? 'Bitte ein Passwort eingeben'
                         : null,
                   ),
+                  if (_copied)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle,
+                              size: 14, color: Colors.green),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'In die Zwischenablage kopiert (wird in 30 s geleert)',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   SwitchListTile(
                     title: const Text('Sonderzeichen einschließen'),
                     value: includeSpecialChars,
                     onChanged: isLoading ? null : (val) {
-                      setState(() {
-                        includeSpecialChars = val;
-                        _passwordController.text = PasswordGenerator.generatePassword(
-                          length: passwordLength.toInt(),
-                          incSpecialChars: includeSpecialChars
-                        );
-                      });
+                      includeSpecialChars = val;
+                      _generate();
                     },
                   ),
                   const SizedBox(height: 16),
@@ -147,12 +197,17 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                             : () => _setLength(passwordLength - 1),
                         icon: const Icon(Icons.remove),
                       ),
-                      SizedBox(
-                        width: 44,
-                        child: Center(
-                          child: Text('$passwordLength',
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                      InkWell(
+                        onTap: isLoading ? null : _editLength,
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          width: 48,
+                          height: 40,
+                          child: Center(
+                            child: Text('$passwordLength',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
+                          ),
                         ),
                       ),
                       IconButton.filledTonal(
@@ -166,8 +221,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
-                      onPressed:
-                          isLoading ? null : () => _setLength(passwordLength),
+                      onPressed: isLoading ? null : () => _generate(),
                       icon: const Icon(Icons.refresh, size: 18),
                       label: const Text('Neu generieren'),
                     ),

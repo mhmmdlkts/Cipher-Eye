@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/history.dart';
 import '../models/password.dart';
+import 'log_detail_screen.dart';
 import '../providers/history_provider.dart';
 import '../providers/key_provider.dart';
 import '../providers/place_provider.dart';
@@ -206,6 +207,8 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
+        onTap: () => Navigator.push(
+            context, MaterialPageRoute(builder: (_) => LogDetailScreen(h))),
         leading: CircleAvatar(
           backgroundColor: scheme.primary.withValues(alpha: 0.15),
           child: Icon(_iconFor(h.action), color: scheme.primary, size: 20),
