@@ -3,7 +3,7 @@ description: A Kreiseck project.
 
 publish_to: 'none'
 
-version: 1.0.6+6
+version: 1.0.7+7
 
 environment:
   sdk: '>=3.2.3 <4.0.0'

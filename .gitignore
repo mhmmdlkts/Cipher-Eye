@@ -47,3 +47,8 @@ app.*.map.json
 app.*.symbols
 build/web/
 migrate_working_dir/
+
+# Android release signing (never commit secrets)
+android/key.properties
+**/*.jks
+**/*.keystore
