@@ -13,6 +13,18 @@ class PasswordService {
   static List<Password> get drafts =>
       passwords.where((p) => p.isDraft).toList();
 
+  /// All stored versions of a purpose (newest first), excluding drafts. The
+  /// first entry is the current (latest) password; the rest are historical
+  /// versions kept after edits so the old password can still be looked up.
+  static List<Password> versionsOf(String purposeId) {
+    final list = passwords
+        .where((p) => p.purposeId == purposeId && !p.isDraft)
+        .toList();
+    list.sort((a, b) => (b.timestamp?.millisecondsSinceEpoch ?? 0)
+        .compareTo(a.timestamp?.millisecondsSinceEpoch ?? 0));
+    return list;
+  }
+
   /// Re-masks every entry. Called when the password list (re)appears and on
   /// lock, so a revealed password is never shown again without a deliberate tap.
   static void maskAll() {
@@ -74,6 +86,21 @@ class PasswordService {
     password.push();
   }
 
+  /// Edits a password by storing a NEW version under the same purpose: the
+  /// previous version is kept (marked non-latest) so the old password remains
+  /// viewable, and the list shows the new one as if it had been overwritten.
+  static Future updatePassword(Password password) async {
+    passwords
+        .where((element) => element.purposeId == password.purposeId)
+        .forEach((element) {
+      element.isLatest = false;
+    });
+    password.isLatest = true;
+    passwords.add(password);
+    HistoryService.saveUpdateHistory(password.id!);
+    await password.push();
+  }
+
   /// Encrypts [value] with the current scheme (AES-GCM, random IV).
   /// Returns the ciphertext and the IV (both base64); both belong in the doc.
   static ({String value, String iv}) encode(String value) {
@@ -103,8 +130,25 @@ class PasswordService {
 
   static Future deletePassword(Password password) async {
     HistoryService.saveDeleteHistory(password.id!);
-    passwords.removeWhere((element) => element.purposeId == password.purposeId);
-    await FirestorePathsService.getPasswordDoc(passwordId: password.id!).delete();
+    // Drafts can share a purposeId (empty website + same username), so delete a
+    // draft strictly by its own id.
+    if (password.isDraft) {
+      passwords.removeWhere((element) => element.id == password.id);
+      await FirestorePathsService.getPasswordDoc(passwordId: password.id!)
+          .delete();
+      return;
+    }
+    // A real password: remove every stored version of its purpose, both from
+    // memory and from Firestore, so no orphaned old-version docs are left.
+    final versions = passwords
+        .where((element) =>
+            element.purposeId == password.purposeId && !element.isDraft)
+        .toList();
+    passwords.removeWhere((element) =>
+        element.purposeId == password.purposeId && !element.isDraft);
+    for (final v in versions) {
+      await FirestorePathsService.getPasswordDoc(passwordId: v.id!).delete();
+    }
   }
 
 }

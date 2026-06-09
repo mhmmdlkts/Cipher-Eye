@@ -113,6 +113,8 @@ class LogDetailScreen extends ConsumerWidget {
         return Icons.visibility;
       case 'create':
         return Icons.add;
+      case 'update':
+        return Icons.autorenew;
       case 'delete':
         return Icons.delete_outline;
       case 'key':
@@ -132,6 +134,8 @@ class LogDetailScreen extends ConsumerWidget {
         return 'Angesehen';
       case 'create':
         return 'Erstellt';
+      case 'update':
+        return 'Passwort neu gesetzt';
       case 'delete':
         return 'Gelöscht';
       case 'key':

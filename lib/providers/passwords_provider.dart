@@ -27,6 +27,12 @@ class PasswordsNotifier extends Notifier<List<Password>> {
     refresh();
   }
 
+  /// Edit a real password → store it as a new version of the same purpose.
+  Future<void> update(Password newVersion) async {
+    await PasswordService.updatePassword(newVersion);
+    refresh();
+  }
+
   Future<void> delete(Password password) async {
     await PasswordService.deletePassword(password);
     refresh();

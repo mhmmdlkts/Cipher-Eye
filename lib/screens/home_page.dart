@@ -27,7 +27,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode focusNode = FocusNode();
   bool _showSearchBar = false;
-  bool editMode = false;
   String? searchVal;
 
   @override
@@ -150,7 +149,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       ),
       drawer: _drawer(),
-      floatingActionButton: editMode?_closeEditModeFab():_createNewFab(),
+      floatingActionButton: _createNewFab(),
     );
   }
 
@@ -207,16 +206,14 @@ class _HomePageState extends ConsumerState<HomePage> {
     final hasName = pass.website?.isNotEmpty ?? false;
     return ListTile(
       isThreeLine: true,
-      onTap: editMode
-          ? null
-          : () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => pass.isDraft
-                      ? AddNewPasswordScreen(draft: pass)
-                      : PasswordDetailScreen(pass),
-                ),
-              ),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => pass.isDraft
+              ? AddNewPasswordScreen(draft: pass)
+              : PasswordDetailScreen(pass),
+        ),
+      ),
       leading: CircleAvatar(
         backgroundColor: scheme.primary.withValues(alpha: 0.12),
         child: pass.isDraft
@@ -261,33 +258,25 @@ class _HomePageState extends ConsumerState<HomePage> {
           Text(value, style: const TextStyle(letterSpacing: 1.5)),
         ],
       ),
-      trailing: editMode
-          ? IconButton(
-              tooltip: 'Löschen',
-              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-              onPressed: () => _confirmDelete(pass),
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: pass.isVisible ? 'Verbergen' : 'Anzeigen',
-                  icon: Icon(
-                      pass.isVisible
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      size: 20),
-                  onPressed: () => _toggleReveal(pass),
-                ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Kopieren',
-                  icon: const Icon(Icons.content_copy, size: 18),
-                  onPressed: () => _copyFromList(pass),
-                ),
-              ],
-            ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: pass.isVisible ? 'Verbergen' : 'Anzeigen',
+            icon: Icon(
+                pass.isVisible ? Icons.visibility : Icons.visibility_off,
+                size: 20),
+            onPressed: () => _toggleReveal(pass),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Kopieren',
+            icon: const Icon(Icons.content_copy, size: 18),
+            onPressed: () => _copyFromList(pass),
+          ),
+        ],
+      ),
     );
   }
 
@@ -319,37 +308,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     ));
   }
 
-  void _confirmDelete(Password pass) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Passwort löschen'),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Möchtest du dieses Passwort wirklich löschen?'),
-            const SizedBox(height: 10),
-            Text(pass.website ?? '',
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref.read(passwordsProvider.notifier).delete(pass);
-            },
-            child: const Text('Löschen'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _createNewFab() => FloatingActionButton(
     backgroundColor: Theme.of(context).colorScheme.primary,
     child: Icon(Icons.add),
@@ -364,15 +322,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             builder: (context) => AddNewPasswordScreen(),
           )
       );
-    },
-  );
-
-  Widget _closeEditModeFab() => FloatingActionButton(
-    child: Icon(Icons.close),
-    onPressed: () async {
-      setState(() {
-        editMode = false;
-      });
     },
   );
 
@@ -438,15 +387,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
-              if (!editMode)
-                ListTile(
-                  title: const Text('Bearbeiten'),
-                  onTap: () {
-                    setState(() {
-                      editMode = true;
-                    });
-                  },
-                ),
               ListTile(
                 title: const Text('Einstellungen'),
                 onTap: () {

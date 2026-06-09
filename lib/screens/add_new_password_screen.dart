@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cipher_eye/models/password.dart';
 import 'package:cipher_eye/services/password_generator.dart';
 import 'package:cipher_eye/services/person_service.dart';
@@ -9,10 +11,14 @@ import '../services/clipboard_service.dart';
 import '../widgets/app_text_field.dart';
 
 class AddNewPasswordScreen extends ConsumerStatefulWidget {
-  const AddNewPasswordScreen({super.key, this.draft});
+  const AddNewPasswordScreen({super.key, this.draft, this.editVersion});
 
   /// When set, this draft is being finished/edited instead of created anew.
   final Password? draft;
+
+  /// When set, an existing real password is being edited; saving stores a new
+  /// version of the same purpose (the old one is kept but no longer latest).
+  final Password? editVersion;
 
   @override
   ConsumerState<AddNewPasswordScreen> createState() =>
@@ -33,13 +39,26 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
   int passwordLength = 24;
   bool _copied = false;
   bool _saved = false;
-  late final Password _draft;
+  Password? _draft;
+  Timer? _clearTimer;
+  int _clearSeconds = 0;
+
+  /// Editing an existing real password → save creates a new version.
+  bool get _isEditVersion => widget.editVersion != null;
 
   @override
   void initState() {
     super.initState();
+    final edit = widget.editVersion;
     final existing = widget.draft;
-    if (existing != null) {
+    if (edit != null) {
+      // Edit an existing password: prefill, but don't create/persist a draft.
+      _websiteController.text = edit.website ?? '';
+      _usernameController.text = edit.username ?? '';
+      try {
+        _passwordController.text = edit.decrypted();
+      } catch (_) {}
+    } else if (existing != null) {
       _draft = existing;
       _websiteController.text = existing.website ?? '';
       _usernameController.text = existing.username ?? '';
@@ -49,27 +68,30 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     } else {
       _usernameController.text = usernames.isNotEmpty ? usernames.first : '';
       _generate(rebuild: false);
-      _draft = Password.createDraft(
+      final draft = Password.createDraft(
         username: _usernameController.text,
         plaintText: _passwordController.text,
       );
+      _draft = draft;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(passwordsProvider.notifier).addDraft(_draft);
+        ref.read(passwordsProvider.notifier).addDraft(draft);
       });
     }
   }
 
   @override
   void dispose() {
-    // Leaving without finalizing → keep the work as a draft.
-    if (!_saved) {
+    _clearTimer?.cancel();
+    // Leaving an unfinished draft without saving → keep the work as a draft.
+    final draft = _draft;
+    if (!_saved && !_isEditVersion && draft != null) {
       try {
-        _draft.applyEdits(
+        draft.applyEdits(
           website: _websiteController.text,
           username: _usernameController.text,
           plaintText: _passwordController.text,
         );
-        _draft.push();
+        draft.push();
       } catch (_) {}
     }
     _websiteController.dispose();
@@ -88,7 +110,28 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     _passwordController.text = pw;
     ClipboardService.copySensitive(pw);
     _copied = true;
+    _startClearCountdown();
     if (rebuild) setState(() {});
+  }
+
+  /// Counts down the seconds until the clipboard auto-wipes (kept in sync with
+  /// [ClipboardService.clearAfter]); updates the on-screen hint live.
+  void _startClearCountdown() {
+    _clearTimer?.cancel();
+    _clearSeconds = ClipboardService.clearAfter.inSeconds;
+    _clearTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() {
+        _clearSeconds--;
+        if (_clearSeconds <= 0) {
+          _copied = false;
+          t.cancel();
+        }
+      });
+    });
   }
 
   void _setLength(int length) {
@@ -121,12 +164,50 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     if (result != null) _setLength(result);
   }
 
+  Future<void> _deleteDraft() async {
+    final draft = _draft;
+    if (draft == null) return;
+    final navigator = Navigator.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Entwurf löschen'),
+        content: const Text('Diesen Entwurf wirklich verwerfen?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Löschen')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    // Prevent dispose() from re-persisting the draft we just deleted.
+    _saved = true;
+    await ref.read(passwordsProvider.notifier).delete(draft);
+    navigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        title: Text(widget.draft != null ? 'Entwurf bearbeiten' : 'Neues Passwort'),
+        title: Text(_isEditVersion
+            ? 'Passwort bearbeiten'
+            : widget.draft != null
+                ? 'Entwurf bearbeiten'
+                : 'Neues Passwort'),
+        actions: [
+          if (widget.draft != null)
+            IconButton(
+              tooltip: 'Entwurf löschen',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: isLoading ? null : _deleteDraft,
+            ),
+        ],
       ),
       body: Form(
         key: _formKey,
@@ -183,7 +264,10 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                     prefixIcon: Icons.lock_outline,
                     enabled: !isLoading,
                     onChanged: (_) {
-                      if (_copied) setState(() => _copied = false);
+                      if (_copied) {
+                        _clearTimer?.cancel();
+                        setState(() => _copied = false);
+                      }
                     },
                     validator: (value) => (value == null || value.isEmpty)
                         ? 'Bitte ein Passwort eingeben'
@@ -199,7 +283,8 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              'In die Zwischenablage kopiert (wird in 30 s geleert)',
+                              'In die Zwischenablage kopiert '
+                              '(wird in $_clearSeconds s geleert)',
                               style: TextStyle(
                                   fontSize: 12,
                                   color: Theme.of(context)
@@ -211,18 +296,28 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                       ),
                     ),
                   const SizedBox(height: 16),
-                  SwitchListTile(
-                    title: const Text('Sonderzeichen einschließen'),
-                    value: includeSpecialChars,
-                    onChanged: isLoading ? null : (val) {
-                      includeSpecialChars = val;
-                      _generate();
-                    },
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Sonderzeichen einschließen',
+                            style: TextStyle(fontSize: 16)),
+                      ),
+                      Switch(
+                        value: includeSpecialChars,
+                        onChanged: isLoading
+                            ? null
+                            : (val) {
+                                includeSpecialChars = val;
+                                _generate();
+                              },
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Text('Passwortlänge'),
+                      const Text('Passwortlänge',
+                          style: TextStyle(fontSize: 16)),
                       const Spacer(),
                       IconButton.filledTonal(
                         onPressed: isLoading || passwordLength <= 8
@@ -275,15 +370,29 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                     final messenger = ScaffoldMessenger.of(context);
                     final navigator = Navigator.of(context);
                     try {
-                      _draft.applyEdits(
-                        website: _websiteController.text,
-                        username: _usernameController.text,
-                        plaintText: _passwordController.text,
-                        finalize: true,
-                      );
-                      await ref
-                          .read(passwordsProvider.notifier)
-                          .saveDraft(_draft, finalize: true);
+                      if (_isEditVersion) {
+                        // Editing a real password → store a new version of the
+                        // same purpose; the old one is kept but no longer latest.
+                        final newVersion = Password.create(
+                          website: _websiteController.text,
+                          username: _usernameController.text,
+                          plaintText: _passwordController.text,
+                        );
+                        await ref
+                            .read(passwordsProvider.notifier)
+                            .update(newVersion);
+                      } else {
+                        final draft = _draft!;
+                        draft.applyEdits(
+                          website: _websiteController.text,
+                          username: _usernameController.text,
+                          plaintText: _passwordController.text,
+                          finalize: true,
+                        );
+                        await ref
+                            .read(passwordsProvider.notifier)
+                            .saveDraft(draft, finalize: true);
+                      }
                       _saved = true;
                       messenger.showSnackBar(const SnackBar(
                         content: Text('Gespeichert'),

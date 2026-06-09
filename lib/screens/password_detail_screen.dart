@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/history.dart';
 import '../models/password.dart';
+import 'add_new_password_screen.dart';
 import 'log_detail_screen.dart';
 import '../providers/history_provider.dart';
 import '../providers/key_provider.dart';
+import '../providers/passwords_provider.dart';
 import '../providers/place_provider.dart';
 import '../services/clipboard_service.dart';
 import '../services/history_service.dart';
@@ -23,8 +25,54 @@ class PasswordDetailScreen extends ConsumerStatefulWidget {
 
 class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
   bool _revealed = false;
+  final Set<String> _revealedVersions = {};
 
   Password get pass => widget.password;
+
+  Future<void> _edit() async {
+    if (!ref.read(hasKeyProvider)) {
+      _warnNoKey();
+      return;
+    }
+    final navigator = Navigator.of(context);
+    await navigator.push(MaterialPageRoute(
+      builder: (_) => AddNewPasswordScreen(editVersion: pass),
+    ));
+    // pass is now an older version; return to the (refreshed) list.
+    if (mounted) navigator.pop();
+  }
+
+  Future<void> _confirmDelete() async {
+    final navigator = Navigator.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Passwort löschen'),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+                'Dieses Passwort inkl. aller früheren Versionen wirklich löschen?'),
+            const SizedBox(height: 10),
+            Text(pass.website ?? '',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Löschen')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(passwordsProvider.notifier).delete(pass);
+    navigator.pop();
+  }
 
   void _warnNoKey() {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -72,12 +120,27 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     final historyAsync = ref.watch(passwordHistoryProvider(pass.id!));
     return Scaffold(
       backgroundColor: scheme.surface,
-      appBar: AppBar(title: Text(pass.website ?? 'Passwort')),
+      appBar: AppBar(
+        title: Text(pass.website ?? 'Passwort'),
+        actions: [
+          IconButton(
+            tooltip: 'Bearbeiten',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _edit,
+          ),
+          IconButton(
+            tooltip: 'Löschen',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _confirmDelete,
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _headerCard(scheme),
           const SizedBox(height: 24),
+          _previousVersions(scheme),
           Row(
             children: [
               Text('Verlauf', style: Theme.of(context).textTheme.titleMedium),
@@ -101,7 +164,8 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
                   .where((h) =>
                       h.action == 'copy' ||
                       h.action == 'create' ||
-                      h.action == 'view')
+                      h.action == 'view' ||
+                      h.action == 'update')
                   .toList();
               if (relevant.isEmpty) {
                 return const Padding(
@@ -198,6 +262,72 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     );
   }
 
+  Widget _previousVersions(ColorScheme scheme) {
+    final older = PasswordService.versionsOf(pass.purposeId ?? '')
+        .where((p) => p.id != pass.id)
+        .toList();
+    if (older.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Frühere Versionen',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(width: 8),
+            Icon(Icons.history, size: 16, color: scheme.onSurfaceVariant),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...older.map((p) => _versionTile(p, scheme)),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _versionTile(Password p, ColorScheme scheme) {
+    final shown = _revealedVersions.contains(p.id);
+    final dt = p.timestamp?.toDate();
+    String value;
+    if (shown) {
+      try {
+        value = p.decrypted();
+      } catch (_) {
+        value = '— Key fehlt —';
+      }
+    } else {
+      value = List.filled(12, '•').join();
+    }
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ListTile(
+        leading: Icon(Icons.lock_clock_outlined, color: scheme.primary),
+        title: Text(value, style: const TextStyle(letterSpacing: 1.2)),
+        subtitle: Text(dt != null ? _formatTs(dt) : 'Unbekannt'),
+        trailing: IconButton(
+          tooltip: shown ? 'Verbergen' : 'Anzeigen',
+          icon: Icon(shown ? Icons.visibility : Icons.visibility_off, size: 20),
+          onPressed: () {
+            if (!shown && !ref.read(hasKeyProvider)) {
+              _warnNoKey();
+              return;
+            }
+            setState(() {
+              if (shown) {
+                _revealedVersions.remove(p.id);
+              } else {
+                _revealedVersions.add(p.id!);
+              }
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _historyTile(History h) {
     final scheme = Theme.of(context).colorScheme;
     final dt = h.timestamp?.toDate();
@@ -257,6 +387,8 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
         return Icons.visibility;
       case 'create':
         return Icons.add;
+      case 'update':
+        return Icons.autorenew;
       case 'delete':
         return Icons.delete_outline;
       case 'key':
