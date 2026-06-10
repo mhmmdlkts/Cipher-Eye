@@ -1,3 +1,4 @@
+import 'package:cipher_eye/services/haptics.dart';
 import 'package:cipher_eye/services/history_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,6 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => isLoading = true);
     await ref.read(keyProvider.notifier).setKey(key);
     if (!mounted) return;
+    Haptics.success();
     _keyController.clear();
     setState(() => isLoading = false);
   }
@@ -147,6 +149,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 );
                 if (shouldDelete == true) {
+                  Haptics.warning();
                   await ref.read(keyProvider.notifier).removeKey();
                 }
               },

@@ -3,6 +3,7 @@ import 'package:cipher_eye/screens/password_detail_screen.dart';
 import 'package:cipher_eye/screens/settings_screen.dart';
 import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
+import 'package:cipher_eye/services/haptics.dart';
 import 'package:cipher_eye/services/history_service.dart';
 import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
@@ -286,6 +287,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       return;
     }
     final revealing = !pass.isVisible;
+    Haptics.selection();
     setState(() => pass.isVisible = !pass.isVisible);
     if (revealing) {
       HistoryService.saveViewHistory(pass.id!);

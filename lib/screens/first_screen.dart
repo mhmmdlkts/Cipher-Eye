@@ -5,6 +5,7 @@ import 'package:kreiseck_branding/kreiseck_branding.dart';
 import 'package:local_auth/local_auth.dart';
 
 import '../popup/pin_entry_popup.dart';
+import '../services/haptics.dart';
 import '../services/init_service.dart';
 import '../services/migration_service.dart';
 import 'home_page.dart';
@@ -96,6 +97,7 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     try {
       final ok = kIsWeb ? await _authWeb() : await _authNative();
       if (ok && mounted) {
+        Haptics.success();
         setState(() {
           _unlocked = true;
           _obscured = false;

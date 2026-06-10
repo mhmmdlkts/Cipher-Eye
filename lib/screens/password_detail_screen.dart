@@ -10,6 +10,7 @@ import '../providers/key_provider.dart';
 import '../providers/passwords_provider.dart';
 import '../providers/place_provider.dart';
 import '../services/clipboard_service.dart';
+import '../services/haptics.dart';
 import '../services/history_service.dart';
 import '../services/password_service.dart';
 
@@ -70,6 +71,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
       ),
     );
     if (ok != true) return;
+    Haptics.warning();
     await ref.read(passwordsProvider.notifier).delete(pass);
     navigator.pop();
   }
@@ -105,6 +107,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
       return;
     }
     final revealing = !_revealed;
+    Haptics.selection();
     setState(() => _revealed = !_revealed);
     if (revealing) {
       PasswordService.incrementUsage(pass.id!, copy: false);
@@ -348,6 +351,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
               _warnNoKey();
               return;
             }
+            Haptics.selection();
             setState(() {
               if (shown) {
                 _revealedVersions.remove(p.id);

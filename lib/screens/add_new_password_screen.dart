@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/passwords_provider.dart';
 import '../services/clipboard_service.dart';
+import '../services/haptics.dart';
 import '../widgets/app_text_field.dart';
 
 class AddNewPasswordScreen extends ConsumerStatefulWidget {
@@ -184,6 +185,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
       ),
     );
     if (ok != true) return;
+    Haptics.warning();
     // Prevent dispose() from re-persisting the draft we just deleted.
     _saved = true;
     await ref.read(passwordsProvider.notifier).delete(draft);
@@ -399,6 +401,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                             .saveDraft(draft, finalize: true);
                       }
                       _saved = true;
+                      Haptics.success();
                       messenger.showSnackBar(const SnackBar(
                         content: Text('Gespeichert'),
                         duration: Duration(seconds: 2),

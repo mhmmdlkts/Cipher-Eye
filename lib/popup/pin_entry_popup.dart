@@ -1,3 +1,4 @@
+import 'package:cipher_eye/services/haptics.dart';
 import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/material.dart';
 
@@ -58,8 +59,10 @@ class _PinEntryPopupState extends State<PinEntryPopup> {
     final ok = await SecureStorageService.checkPin(enteredPin);
     if (!mounted) return;
     if (ok) {
+      Haptics.success();
       Navigator.of(context).pop(true);
     } else {
+      Haptics.warning();
       clear();
       tryRemains--;
       if (tryRemains <= 0) {
