@@ -207,14 +207,10 @@ class _HomePageState extends ConsumerState<HomePage> {
     final hasName = pass.website?.isNotEmpty ?? false;
     return ListTile(
       isThreeLine: true,
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => pass.isDraft
-              ? AddNewPasswordScreen(draft: pass)
-              : PasswordDetailScreen(pass),
-        ),
-      ),
+      // Tap = copy (drafts open their editor instead, since they're unfinished).
+      // Long-press = reveal. The trailing button opens the detail/editor screen.
+      onTap: pass.isDraft ? () => _open(pass) : () => _copyFromList(pass),
+      onLongPress: pass.isDraft ? null : () => _toggleReveal(pass),
       leading: CircleAvatar(
         backgroundColor: scheme.primary.withValues(alpha: 0.12),
         child: pass.isDraft
@@ -259,27 +255,25 @@ class _HomePageState extends ConsumerState<HomePage> {
           Text(value, style: const TextStyle(letterSpacing: 1.5)),
         ],
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            tooltip: pass.isVisible ? 'Verbergen' : 'Anzeigen',
-            icon: Icon(
-                pass.isVisible ? Icons.visibility : Icons.visibility_off,
-                size: 20),
-            onPressed: () => _toggleReveal(pass),
-          ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            tooltip: 'Kopieren',
-            icon: const Icon(Icons.content_copy, size: 18),
-            onPressed: () => _copyFromList(pass),
-          ),
-        ],
+      trailing: IconButton(
+        visualDensity: VisualDensity.compact,
+        tooltip: pass.isDraft ? 'Entwurf bearbeiten' : 'Details öffnen',
+        icon: Icon(
+            pass.isDraft ? Icons.edit_note : Icons.chevron_right,
+            size: 22),
+        onPressed: () => _open(pass),
       ),
     );
   }
+
+  void _open(Password pass) => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => pass.isDraft
+              ? AddNewPasswordScreen(draft: pass)
+              : PasswordDetailScreen(pass),
+        ),
+      );
 
   void _toggleReveal(Password pass) {
     if (!pass.isVisible && !_hasKey) {

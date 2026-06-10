@@ -12,12 +12,21 @@ class PasswordsNotifier extends Notifier<List<Password>> {
   @override
   List<Password> build() => _combined();
 
-  /// Drafts first (newest), then the latest real entries.
+  /// Drafts first (newest), then the latest real entries sorted by how often
+  /// they're used (copy + view counts, highest first; timestamp as tiebreak).
   List<Password> _combined() {
     final drafts = PasswordService.drafts
       ..sort((a, b) => (b.timestamp?.millisecondsSinceEpoch ?? 0)
           .compareTo(a.timestamp?.millisecondsSinceEpoch ?? 0));
-    return [...drafts, ...PasswordService.newPasswords];
+    int usage(Password p) => p.copyCount + p.viewCount;
+    final entries = PasswordService.newPasswords
+      ..sort((a, b) {
+        final byUsage = usage(b).compareTo(usage(a));
+        if (byUsage != 0) return byUsage;
+        return (b.timestamp?.millisecondsSinceEpoch ?? 0)
+            .compareTo(a.timestamp?.millisecondsSinceEpoch ?? 0);
+      });
+    return [...drafts, ...entries];
   }
 
   void refresh() => state = _combined();
