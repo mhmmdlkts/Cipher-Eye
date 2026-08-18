@@ -1,6 +1,7 @@
 import '../models/item.dart';
 import 'firestore_paths_service.dart';
 import 'item_repository.dart';
+import 'items_migration_service.dart';
 import 'person_service.dart';
 
 /// Static facade over the personal item repository (kept static so the
@@ -17,9 +18,21 @@ class ItemService {
 
   static Future<void> init() async {
     personal = ItemRepository(FirestorePathsService.getItemsCol());
-    // Until the account has migrated, also read the legacy collection.
-    final migrated =
+    var migrated =
         PersonService.person.dataVersion >= PersonService.kDataVersion;
+    if (!migrated) {
+      try {
+        await ItemsMigrationService(
+          from: FirestorePathsService.getPasswordCol(),
+          to: FirestorePathsService.getItemsCol(),
+          profile: FirestorePathsService.getUserDoc(),
+        ).run();
+        PersonService.person.dataVersion = PersonService.kDataVersion;
+        migrated = true;
+      } catch (_) {
+        // Fall back to reading both collections; retried on next launch.
+      }
+    }
     await personal.load(
         extraSources:
             migrated ? const [] : [FirestorePathsService.getPasswordCol()]);
