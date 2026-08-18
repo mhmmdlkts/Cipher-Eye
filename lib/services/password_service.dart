@@ -1,3 +1,4 @@
+import 'package:cipher_eye/services/crypto_service.dart';
 import 'package:cipher_eye/services/firestore_paths_service.dart';
 import 'package:cipher_eye/services/history_service.dart';
 import 'package:cipher_eye/services/secure_storage_service.dart';
@@ -42,13 +43,9 @@ class PasswordService {
         .update({field: FieldValue.increment(1)});
   }
 
-  /// Current crypto/security version. Entries below this need migration.
-  /// v1 (legacy): AES-SIC with a fixed all-zeros IV (insecure, keystream reuse).
-  /// v2: AES-GCM with a per-entry random IV (authenticated).
-  static const int kCryptoVersion = 2;
-
-  /// Standard nonce length for AES-GCM (96 bit).
-  static const int _gcmIvLength = 12;
+  /// Current crypto/security version (see [CryptoService]). Entries below
+  /// this need migration.
+  static const int kCryptoVersion = CryptoService.kVersion;
 
   /// Builds the AES key from secure storage on demand. Never cached, so a key
   /// change in settings takes effect immediately and a missing key fails loudly
@@ -58,7 +55,7 @@ class PasswordService {
     if (k == null) {
       throw StateError('Encryption key is not set');
     }
-    return Key.fromUtf8(k);
+    return CryptoService.keyFromMaster(k);
   }
 
   static Future<void> init() async {
@@ -101,32 +98,14 @@ class PasswordService {
     await password.push();
   }
 
-  /// Encrypts [value] with the current scheme (AES-GCM, random IV).
-  /// Returns the ciphertext and the IV (both base64); both belong in the doc.
-  static ({String value, String iv}) encode(String value) {
-    final iv = IV.fromSecureRandom(_gcmIvLength);
-    final encrypter = Encrypter(AES(_requireKey(), mode: AESMode.gcm));
-    final encrypted = encrypter.encrypt(value, iv: iv);
-    return (value: encrypted.base64, iv: iv.base64);
-  }
+  /// Encrypts [value] with the master key (AES-GCM, random IV).
+  static ({String value, String iv}) encode(String value) =>
+      CryptoService.encrypt(value, _requireKey());
 
-  /// Decrypts a stored value, handling both the new (v2, GCM) and the
-  /// legacy (v1, AES-SIC with a fixed zero IV) format. The per-entry [v]
-  /// field decides which path is used — never a profile-level flag.
-  static String decode({required String value, String? iv, int? v}) {
-    if ((v ?? 1) >= kCryptoVersion && iv != null) {
-      final encrypter = Encrypter(AES(_requireKey(), mode: AESMode.gcm));
-      return encrypter.decrypt(Encrypted.fromBase64(value), iv: IV.fromBase64(iv));
-    }
-    return _decodeLegacy(value);
-  }
-
-  /// Byte-compatible with the original implementation: AES default mode (SIC)
-  /// + PKCS7 padding + all-zeros IV. Only used to read pre-migration data.
-  static String _decodeLegacy(String value) {
-    final encrypter = Encrypter(AES(_requireKey()));
-    return encrypter.decrypt(Encrypted.fromBase64(value), iv: IV.allZerosOfLength(16));
-  }
+  /// Decrypts a stored value with the master key; the per-entry [v] decides
+  /// between the current (GCM) and the legacy (v1) format.
+  static String decode({required String value, String? iv, int? v}) =>
+      CryptoService.decrypt(value: value, iv: iv, v: v, key: _requireKey());
 
   static Future deletePassword(Password password) async {
     HistoryService.saveDeleteHistory(password.id!);
