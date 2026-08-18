@@ -335,7 +335,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Text(value, style: const TextStyle(letterSpacing: 1.5)),
               ],
             )
-          : Text(pass.type.label,
+          : Text(
+              pass.hasAttachments
+                  ? '${pass.type.label} · ${pass.attachments.length} Seite${pass.attachments.length == 1 ? '' : 'n'}'
+                  : pass.type.label,
               style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
       trailing: IconButton(
         visualDensity: VisualDensity.compact,

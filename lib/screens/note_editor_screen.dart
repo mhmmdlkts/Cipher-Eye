@@ -56,10 +56,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       if (existing != null) {
         existing.setPayload(
             title: _title.text.trim(), plainJson: data.encode());
-        await notifier.save(existing);
-        if (_vaultId != existing.vaultId) {
-          result = await notifier.move(existing, _vaultId);
-        }
+        result = await notifier.saveAndPlace(existing, _vaultId);
       } else {
         await notifier.add(Item.payload(
           col: ItemService.repoFor(_vaultId).col,

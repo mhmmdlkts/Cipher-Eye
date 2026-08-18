@@ -54,6 +54,14 @@ class ItemsNotifier extends Notifier<List<Item>> {
     refresh();
   }
 
+  /// Saves an edited item, moving it when the chosen location differs from
+  /// where it lives. Returns the live item (a move re-creates it).
+  Future<Item> saveAndPlace(Item item, String? toVaultId) async {
+    await save(item);
+    if (item.vaultId == toVaultId) return item;
+    return move(item, toVaultId);
+  }
+
   /// Re-encrypts and moves an item to another source (null = personal).
   Future<Item> move(Item item, String? toVaultId) async {
     final moved = await ItemService.move(item, toVaultId);

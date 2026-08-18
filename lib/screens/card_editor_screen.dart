@@ -11,6 +11,7 @@ import '../services/card_number_formatter.dart';
 import '../services/haptics.dart';
 import '../services/item_service.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/pages_editor.dart';
 import '../widgets/source_picker.dart';
 
 class CardEditorScreen extends ConsumerStatefulWidget {
@@ -31,15 +32,18 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   final _iban = TextEditingController();
   final _bank = TextEditingController();
   final _note = TextEditingController();
+  final _pages = PagesEditorController();
   bool _saving = false;
   String? _vaultId;
 
   @override
   void initState() {
     super.initState();
+    _pages.addListener(_onPages);
     final e = widget.existing;
     _vaultId = e?.vaultId;
     if (e != null) {
+      _pages.loadFrom(e);
       _title.text = e.title ?? '';
       try {
         final c = CardData.decode(e.decrypted());
@@ -55,8 +59,14 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     }
   }
 
+  void _onPages() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _pages.removeListener(_onPages);
+    _pages.dispose();
     for (final c in [
       _title,
       _number,
@@ -88,27 +98,30 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     );
     final notifier = ref.read(itemsProvider.notifier);
     final existing = widget.existing;
-    Item? result = existing;
     try {
+      Item item;
       if (existing != null) {
         existing.setPayload(
             title: _title.text.trim(), plainJson: data.encode());
-        await notifier.save(existing);
-        if (_vaultId != existing.vaultId) {
-          result = await notifier.move(existing, _vaultId);
-        }
+        item = await notifier.saveAndPlace(existing, _vaultId);
+        if (!identical(item, existing)) _pages.remapAfterMove(existing, item);
       } else {
-        await notifier.add(Item.payload(
+        item = Item.payload(
           col: ItemService.repoFor(_vaultId).col,
           vaultId: _vaultId,
           type: ItemType.card,
           title: _title.text.trim(),
           plainJson: data.encode(),
-        ));
+        );
+        await notifier.add(item);
+      }
+      if (!_pages.isEmpty || item.hasAttachments) {
+        await _pages.commit(item);
+        await notifier.save(item);
       }
       if (!mounted) return;
       Haptics.success();
-      Navigator.pop(context, result);
+      Navigator.pop(context, item);
     } catch (e) {
       Haptics.warning();
       if (mounted) {
@@ -199,7 +212,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
               hint: 'optional',
               prefixIcon: Icons.notes,
               maxLines: 3),
+          const SizedBox(height: 20),
+          PagesEditor(controller: _pages, enabled: !_saving),
           const SizedBox(height: 24),
+          if (_pages.progress != null) ...[
+            const LinearProgressIndicator(),
+            const SizedBox(height: 6),
+            Text(_pages.progress!,
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 12),
+          ],
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

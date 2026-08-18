@@ -1,23 +1,16 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/attachment.dart';
 import '../models/item.dart';
 import '../models/item_payload.dart';
 import '../models/item_type.dart';
 import '../providers/items_provider.dart';
 import '../providers/key_provider.dart';
-import '../services/attachment_service.dart';
-import '../services/document_capture.dart';
 import '../services/haptics.dart';
-import '../services/image_pipeline.dart';
 import '../services/item_service.dart';
 import '../widgets/app_text_field.dart';
-import '../widgets/page_strip.dart';
+import '../widgets/pages_editor.dart';
 import '../widgets/source_picker.dart';
-import '../widgets/text_prompt_dialog.dart';
 
 /// Create/edit a document (ID, passport, licence, …): encrypted fields plus
 /// an ordered set of encrypted image pages.
@@ -39,18 +32,15 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
   final _issued = TextEditingController();
   final _expires = TextEditingController();
   final _note = TextEditingController();
+  final _pages = PagesEditorController();
   DocType _docType = DocType.other;
   String? _vaultId;
-  final List<PageEntry> _pages = [];
-  final List<Attachment> _removed = [];
   bool _saving = false;
-  String? _progress;
-
-  static const _defaultLabels = ['Vorderseite', 'Rückseite'];
 
   @override
   void initState() {
     super.initState();
+    _pages.addListener(_onPages);
     final e = widget.existing;
     if (e != null) {
       _vaultId = e.vaultId;
@@ -63,149 +53,25 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
         _expires.text = d.expires ?? '';
         _note.text = d.note ?? '';
       } catch (_) {}
-      for (final a in e.pages) {
-        _pages.add(PageEntry(
-            attachmentId: a.id, label: a.label, width: a.width, height: a.height));
-      }
-      _loadExisting();
+      _pages.loadFrom(e);
     } else {
       _docType = widget.docType ?? DocType.other;
       _title.text = _docType == DocType.other ? '' : _docType.label;
     }
   }
 
-  Future<void> _loadExisting() async {
-    final e = widget.existing!;
-    for (final p in _pages) {
-      final att = e.attachments.where((a) => a.id == p.attachmentId).firstOrNull;
-      if (att == null) continue;
-      try {
-        final bytes = await AttachmentService.instance.download(e, att);
-        if (!mounted) return;
-        setState(() => p.bytes = bytes);
-      } catch (_) {
-        if (mounted) setState(() => p.loadFailed = true);
-      }
-    }
+  void _onPages() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _pages.removeListener(_onPages);
+    _pages.dispose();
     for (final c in [_title, _number, _issued, _expires, _note]) {
       c.dispose();
     }
     super.dispose();
-  }
-
-  String _nextLabel() {
-    final n = _pages.length;
-    return n < _defaultLabels.length ? _defaultLabels[n] : 'Seite ${n + 1}';
-  }
-
-  Future<void> _addPage() async {
-    final canScan = await DocumentCapture.scannerAvailable();
-    if (!mounted) return;
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (canScan)
-              ListTile(
-                leading: const Icon(Icons.document_scanner_outlined),
-                title: const Text('Scannen'),
-                subtitle: const Text('Automatischer Zuschnitt, mehrere Seiten'),
-                onTap: () => Navigator.pop(ctx, 'scan'),
-              ),
-            if (DocumentCapture.isMobile)
-              ListTile(
-                leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Foto aufnehmen'),
-                onTap: () => Navigator.pop(ctx, 'camera'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Aus Galerie / Datei'),
-              onTap: () => Navigator.pop(ctx, 'gallery'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (choice == null || !mounted) return;
-    try {
-      if (choice == 'scan') {
-        final pages = await DocumentCapture.scan();
-        setState(() {
-          for (final p in pages) {
-            _pages.add(PageEntry(
-                bytes: p.jpeg, label: _nextLabel(), width: p.width, height: p.height)
-              ..dirty = true);
-          }
-        });
-      } else {
-        final p = await DocumentCapture.pickImage(context, camera: choice == 'camera');
-        if (p == null || !mounted) return;
-        setState(() => _pages.add(PageEntry(
-            bytes: p.jpeg, label: _nextLabel(), width: p.width, height: p.height)
-          ..dirty = true));
-      }
-      Haptics.selection();
-    } catch (e) {
-      _snack('Aufnahme fehlgeschlagen: $e');
-    }
-  }
-
-  Future<void> _recrop(int i) async {
-    final p = _pages[i];
-    if (p.bytes == null) return;
-    final res = await DocumentCapture.recrop(context, p.bytes!);
-    if (res == null || !mounted) return;
-    setState(() {
-      p.bytes = res.jpeg;
-      p.width = res.width;
-      p.height = res.height;
-      p.dirty = true;
-    });
-  }
-
-  Future<void> _rotate(int i) async {
-    final p = _pages[i];
-    if (p.bytes == null) return;
-    final rotated = await ImagePipeline.rotate(p.bytes!, 1);
-    if (!mounted) return;
-    setState(() {
-      p.bytes = rotated;
-      final w = p.width;
-      p.width = p.height;
-      p.height = w;
-      p.dirty = true;
-    });
-  }
-
-  Future<void> _relabel(int i) async {
-    final label = await showTextPrompt(context,
-        title: 'Beschriftung', label: 'Beschriftung', initial: _pages[i].label);
-    if (label == null) return;
-    setState(() => _pages[i].label = label.trim());
-  }
-
-  void _remove(int i) {
-    final p = _pages.removeAt(i);
-    if (p.attachmentId != null) {
-      final att = widget.existing?.attachments
-          .where((a) => a.id == p.attachmentId)
-          .firstOrNull;
-      if (att != null) _removed.add(att);
-    }
-    setState(() {});
-  }
-
-  void _snack(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _save() async {
@@ -224,21 +90,8 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
       final existing = widget.existing;
       if (existing != null) {
         existing.setPayload(title: _title.text.trim(), plainJson: data.encode());
-        await notifier.save(existing);
-        item = existing;
-        if (_vaultId != existing.vaultId) {
-          item = await notifier.move(existing, _vaultId);
-          // Attachment ids were re-created by the move → remap page entries.
-          final oldPages = existing.pages;
-          final newPages = item.pages;
-          for (final p in _pages) {
-            final idx = oldPages.indexWhere((a) => a.id == p.attachmentId);
-            if (idx >= 0 && idx < newPages.length) {
-              p.attachmentId = newPages[idx].id;
-            }
-          }
-          _removed.clear();
-        }
+        item = await notifier.saveAndPlace(existing, _vaultId);
+        if (!identical(item, existing)) _pages.remapAfterMove(existing, item);
       } else {
         item = Item.payload(
           col: ItemService.repoFor(_vaultId).col,
@@ -249,66 +102,20 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
         );
         await notifier.add(item);
       }
-
-      // Pages: upload dirty ones, delete removed/replaced ones, keep order.
-      final svc = AttachmentService.instance;
-      final result = <Attachment>[];
-      var n = 0;
-      for (final p in _pages) {
-        n++;
-        Attachment? att = item.attachments
-            .where((a) => a.id == p.attachmentId)
-            .firstOrNull;
-        if (p.dirty && p.bytes != null) {
-          setState(() => _progress = 'Seite $n von ${_pages.length} wird hochgeladen …');
-          final uploaded = await svc.upload(item,
-              plain: p.bytes!,
-              kind: AttachmentKind.image,
-              label: p.label,
-              mime: 'image/jpeg',
-              order: result.length,
-              width: p.width,
-              height: p.height);
-          if (att != null) await svc.delete(item, att);
-          att = uploaded;
-          p.attachmentId = uploaded.id;
-          p.dirty = false;
-        }
-        if (att != null) {
-          att.label = p.label;
-          att.order = result.length;
-          result.add(att);
-        }
-      }
-      for (final r in _removed) {
-        await svc.delete(item, r);
-      }
-      item.attachments = result;
+      await _pages.commit(item);
       await notifier.save(item);
       if (!mounted) return;
       Haptics.success();
       Navigator.pop(context, item);
     } catch (e) {
       Haptics.warning();
-      _snack('Speichern fehlgeschlagen: $e');
-    } finally {
       if (mounted) {
-        setState(() {
-          _saving = false;
-          _progress = null;
-        });
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
       }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-  }
-
-  Widget _thumb(PageEntry p) {
-    final Uint8List? b = p.bytes;
-    if (b != null) return Image.memory(b, fit: BoxFit.cover, gaplessPlayback: true);
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Icon(p.loadFailed ? Icons.broken_image_outlined : Icons.hourglass_empty,
-          size: 20),
-    );
   }
 
   @override
@@ -338,10 +145,12 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
                 ? null
                 : (t) => setState(() {
                       if (t == null) return;
-                      final wasDefault =
-                          _title.text.trim().isEmpty || _title.text == _docType.label;
+                      final wasDefault = _title.text.trim().isEmpty ||
+                          _title.text == _docType.label;
                       _docType = t;
-                      if (wasDefault && t != DocType.other) _title.text = t.label;
+                      if (wasDefault && t != DocType.other) {
+                        _title.text = t.label;
+                      }
                     }),
           ),
           const SizedBox(height: 12),
@@ -381,24 +190,13 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
               prefixIcon: Icons.notes,
               maxLines: 3),
           const SizedBox(height: 20),
-          PageStrip(
-            pages: _pages,
-            enabled: !_saving,
-            thumbnail: _thumb,
-            onAdd: _addPage,
-            onRecrop: _recrop,
-            onRotate: _rotate,
-            onRelabel: _relabel,
-            onRemove: _remove,
-            onReorder: (o, n) => setState(() {
-              _pages.insert(n, _pages.removeAt(o));
-            }),
-          ),
+          PagesEditor(controller: _pages, enabled: !_saving),
           const SizedBox(height: 24),
-          if (_progress != null) ...[
+          if (_pages.progress != null) ...[
             const LinearProgressIndicator(),
             const SizedBox(height: 6),
-            Text(_progress!, style: Theme.of(context).textTheme.bodySmall),
+            Text(_pages.progress!,
+                style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
           ],
           SizedBox(

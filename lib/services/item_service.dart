@@ -86,6 +86,8 @@ class ItemService {
         extraSources:
             migrated ? const [] : [FirestorePathsService.getPasswordCol()]);
     await reloadVaults();
+    // Retry blob deletions that failed earlier — fire and forget.
+    AttachmentService.instance.runGc().catchError((_) {});
   }
 
   /// (Re)builds the vault service, key store, resolver and per-vault repos.

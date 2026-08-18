@@ -77,10 +77,7 @@ class _FileEditorScreenState extends ConsumerState<FileEditorScreen> {
       final existing = widget.existing;
       if (existing != null) {
         existing.setPayload(title: _title.text.trim(), plainJson: data.encode());
-        await notifier.save(existing);
-        item = _vaultId != existing.vaultId
-            ? await notifier.move(existing, _vaultId)
-            : existing;
+        item = await notifier.saveAndPlace(existing, _vaultId);
       } else {
         item = Item.payload(
           col: ItemService.repoFor(_vaultId).col,
