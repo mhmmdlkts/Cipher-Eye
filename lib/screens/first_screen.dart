@@ -1,5 +1,4 @@
 import 'package:cipher_eye/screens/splash_screen.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:kreiseck_branding/kreiseck_branding.dart';
 
@@ -124,7 +123,7 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     setState(() => _pinInProgress = true);
     try {
       final ok = await AppAuthService.authenticateWithPin(context,
-          allowSetup: kIsWeb);
+          allowSetup: AppAuthService.defaultAllowPinSetup);
       if (ok) _onUnlocked();
     } finally {
       if (mounted) setState(() => _pinInProgress = false);
@@ -380,7 +379,8 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
                           borderRadius: BorderRadius.circular(30)),
                     ),
                   ),
-                  if (kIsWeb || SecureStorageService.hasPin) ...[
+                  if (AppAuthService.defaultAllowPinSetup ||
+                      SecureStorageService.hasPin) ...[
                     const SizedBox(height: 12),
                     TextButton.icon(
                       onPressed:

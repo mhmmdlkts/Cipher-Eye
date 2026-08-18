@@ -1,35 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:kreiseck_branding/kreiseck_branding.dart';
 
-class SplashScreen extends StatefulWidget {
+/// Branded loading screen: eye in the middle, Kreiseck logo at the bottom —
+/// the same layout as the lock and cover screens.
+class SplashScreen extends StatelessWidget {
   final bool freeze;
   const SplashScreen({this.freeze = false, super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: MediaQuery.of(context).size.width,
-      height: MediaQuery.of(context).size.height,
-      color: Theme.of(context).colorScheme.surface,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    final scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      body: SafeArea(
+        child: Stack(
           children: [
-            KreiseckLogo(
-              width: 180,
-              color: KreiseckColors.forBrightness(Theme.of(context).brightness),
+            Center(
+              child: Icon(Icons.remove_red_eye,
+                  size: 96, color: scheme.primary.withValues(alpha: 0.9)),
             ),
-            const SizedBox(height: 32),
-            SizedBox(
-              height: 24,
-              child: widget.freeze
-                  ? null
-                  : const CircularProgressIndicator(strokeWidth: 2),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 32),
+                child: KreiseckLogo(
+                  color: KreiseckColors.forBrightness(Theme.of(context).brightness),
+                  height: 30,
+                ),
+              ),
             ),
           ],
         ),

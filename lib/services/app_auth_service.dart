@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 
@@ -75,9 +75,13 @@ class AppAuthService {
   /// [silent] suppresses the "no PIN" dialog — used for automatic attempts
   /// (cold start, app resume) so a device whose prompt keeps failing does not
   /// show a modal every time the app comes to the foreground.
+  /// Debug builds (simulator without Face ID/passcode) may create the PIN
+  /// from the lock screen; release builds only after a device auth.
+  static const bool defaultAllowPinSetup = kIsWeb || kDebugMode;
+
   static Future<bool> authenticate(BuildContext context,
       {required String reason,
-      bool allowPinSetup = kIsWeb,
+      bool allowPinSetup = defaultAllowPinSetup,
       bool silent = false,
       VoidCallback? onLateSuccess}) async {
     final result = await deviceAuth(reason, onLateSuccess: onLateSuccess);
@@ -92,6 +96,7 @@ class AppAuthService {
           // No device lock and no PIN — nothing to check against.
           return true;
         }
+        if (silent && !SecureStorageService.hasPin) return false;
         return authenticateWithPin(context, allowSetup: allowPinSetup);
       case DeviceAuthResult.failed:
         if (!SecureStorageService.hasPin && !allowPinSetup) {
