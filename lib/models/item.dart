@@ -3,14 +3,15 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 
+import '../services/crypto_service.dart';
 import '../services/history_service.dart';
-import '../services/password_service.dart';
+import '../services/keys.dart';
 import 'item_type.dart';
 
 /// One stored entry: password, card, note, document or file. Sensitive data is
-/// only ever in [value] (AES-GCM, see [PasswordService.encode]); for passwords
-/// the plaintext is the bare password, for every other type a JSON payload
-/// (see item_payload.dart).
+/// only ever in [value] (AES-GCM via [CryptoService], key chosen by
+/// [Keys.resolve] from [vaultId]); for passwords the plaintext is the bare
+/// password, for every other type a JSON payload (see item_payload.dart).
 class Item implements Comparable<Item> {
   String? id;
   ItemType type = ItemType.password;
@@ -33,6 +34,10 @@ class Item implements Comparable<Item> {
   /// The Firestore document this item lives in (set on load / creation).
   DocumentReference? ref;
 
+  /// Source: null = personal (master key), otherwise the vault whose key
+  /// encrypts this item. Runtime only — derived from the collection.
+  String? vaultId;
+
   String? _plainText;
 
   /// Password entries historically called the title "website".
@@ -41,6 +46,7 @@ class Item implements Comparable<Item> {
 
   Item.password({
     required CollectionReference col,
+    this.vaultId,
     required String website,
     required String username,
     required String plainText,
@@ -59,6 +65,7 @@ class Item implements Comparable<Item> {
   /// A work-in-progress password: generated, no website yet.
   Item.draft(
       {required CollectionReference col,
+      this.vaultId,
       this.username,
       required String plainText}) {
     ref = col.doc();
@@ -74,6 +81,7 @@ class Item implements Comparable<Item> {
   /// Any non-password type: [plainJson] is the encoded payload.
   Item.payload({
     required CollectionReference col,
+    this.vaultId,
     required this.type,
     required this.title,
     required String plainJson,
@@ -86,11 +94,36 @@ class Item implements Comparable<Item> {
   }
 
   void _encrypt(String plain) {
-    final e = PasswordService.encode(plain);
+    final e = CryptoService.encrypt(plain, Keys.resolve(vaultId));
     value = e.value;
     iv = e.iv;
-    v = PasswordService.kCryptoVersion;
+    v = CryptoService.kVersion;
     _plainText = null;
+  }
+
+  String _decrypt(String value, String? iv, int v) =>
+      CryptoService.decrypt(value: value, iv: iv, v: v, key: Keys.resolve(vaultId));
+
+  /// Same content, re-encrypted for another collection/key. Keeps title,
+  /// username, purposeId, timestamps, flags and counters; new document id.
+  Item.copyTo(Item src,
+      {required CollectionReference col,
+      required this.vaultId,
+      required String plainText}) {
+    ref = col.doc();
+    id = ref!.id;
+    type = src.type;
+    title = src.title;
+    username = src.username;
+    purposeId = src.purposeId;
+    timestamp = src.timestamp;
+    updatedAt = src.updatedAt;
+    isFavorite = src.isFavorite;
+    isDraft = src.isDraft;
+    copyCount = src.copyCount;
+    viewCount = src.viewCount;
+    attachments = List.of(src.attachments);
+    _encrypt(plainText);
   }
 
   /// Updates a password's editable fields (re-encrypting). Keeps a draft a
@@ -159,6 +192,8 @@ class Item implements Comparable<Item> {
       'updatedAt': updatedAt,
       'isFavorite': isFavorite,
       'isDraft': isDraft,
+      'copyCount': copyCount,
+      'viewCount': viewCount,
       if (attachments.isNotEmpty) 'attachments': attachments,
     };
     if (withNull) return map;
@@ -174,38 +209,36 @@ class Item implements Comparable<Item> {
   String getPlainText() {
     if (_plainText == null) {
       HistoryService.saveCopyHistory(id!);
-      _plainText = PasswordService.decode(value: value!, iv: iv, v: v);
+      _plainText = _decrypt(value!, iv, v);
     }
     return _plainText!;
   }
 
   /// Decrypts WITHOUT logging a history event — for on-screen display.
-  String decrypted() => PasswordService.decode(value: value!, iv: iv, v: v);
+  String decrypted() => _decrypt(value!, iv, v);
 
-  bool get needsMigration => v < PasswordService.kCryptoVersion;
+  bool get needsMigration => v < CryptoService.kVersion;
 
   /// Re-encrypts this entry into the current scheme (v2, AES-GCM) and persists
   /// value/iv/v. The plaintext never leaves the device and is not logged.
   Future<void> migrateCrypto() async {
     if (!needsMigration) return;
-    final plain = PasswordService.decode(value: value!, iv: iv, v: v);
-    final encoded = PasswordService.encode(plain);
+    final plain = _decrypt(value!, iv, v);
+    final encoded = CryptoService.encrypt(plain, Keys.resolve(vaultId));
     // Never overwrite the only stored copy unless the fresh blob round-trips.
-    final roundTrip = PasswordService.decode(
-        value: encoded.value,
-        iv: encoded.iv,
-        v: PasswordService.kCryptoVersion);
+    final roundTrip =
+        _decrypt(encoded.value, encoded.iv, CryptoService.kVersion);
     if (roundTrip != plain) {
       throw StateError('Migration self-check failed for item $id');
     }
     await ref!.update({
       'value': encoded.value,
       'iv': encoded.iv,
-      'v': PasswordService.kCryptoVersion
+      'v': CryptoService.kVersion
     });
     value = encoded.value;
     iv = encoded.iv;
-    v = PasswordService.kCryptoVersion;
+    v = CryptoService.kVersion;
     _plainText = null;
   }
 

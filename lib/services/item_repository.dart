@@ -23,10 +23,13 @@ void _defaultHistory(String action, String itemId) {
 /// All items of one collection (the personal `items` collection today; one
 /// per vault later). Owns loading, version bookkeeping and persistence.
 class ItemRepository {
-  ItemRepository(this.col, {HistoryLogger? history})
+  ItemRepository(this.col, {this.vaultId, HistoryLogger? history})
       : _history = history ?? _defaultHistory;
 
   final CollectionReference col;
+
+  /// null = personal, otherwise the vault this collection belongs to.
+  final String? vaultId;
   final HistoryLogger _history;
   final List<Item> items = [];
 
@@ -37,11 +40,11 @@ class ItemRepository {
     final byId = <String, Item>{};
     for (final src in extraSources) {
       for (final d in (await src.get()).docs) {
-        byId[d.id] = Item.fromSnapshot(d);
+        byId[d.id] = Item.fromSnapshot(d)..vaultId = vaultId;
       }
     }
     for (final d in (await col.get()).docs) {
-      byId[d.id] = Item.fromSnapshot(d);
+      byId[d.id] = Item.fromSnapshot(d)..vaultId = vaultId;
     }
     items
       ..clear()
@@ -86,6 +89,7 @@ class ItemRepository {
   }
 
   Future<void> add(Item item) async {
+    item.vaultId = vaultId;
     items.add(item);
     _recomputeLatest();
     if (!item.isDraft) _history('create', item.id!);
@@ -95,6 +99,7 @@ class ItemRepository {
   /// Password edit: the new version is stored next to the old one, which is
   /// kept (no longer latest) so the old password can still be looked up.
   Future<void> updateVersion(Item item) async {
+    item.vaultId = vaultId;
     items.add(item);
     _recomputeLatest();
     _history('update', item.id!);
@@ -103,6 +108,7 @@ class ItemRepository {
 
   /// In-place save (drafts, non-password types).
   Future<void> save(Item item) async {
+    item.vaultId = vaultId;
     if (!items.contains(item)) items.add(item);
     _recomputeLatest();
     await item.push();

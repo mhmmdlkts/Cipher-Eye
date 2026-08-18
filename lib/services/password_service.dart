@@ -1,5 +1,5 @@
 import 'package:cipher_eye/services/crypto_service.dart';
-import 'package:cipher_eye/services/secure_storage_service.dart';
+import 'package:cipher_eye/services/keys.dart';
 import 'package:encrypt/encrypt.dart';
 
 /// Master-key crypto for personal items: builds the AES key from secure
@@ -12,13 +12,7 @@ class PasswordService {
   /// Builds the AES key from secure storage on demand. Never cached, so a key
   /// change in settings takes effect immediately and a missing key fails loudly
   /// instead of crashing at class-load time.
-  static Key _requireKey() {
-    final k = SecureStorageService.key;
-    if (k == null) {
-      throw StateError('Encryption key is not set');
-    }
-    return CryptoService.keyFromMaster(k);
-  }
+  static Key _requireKey() => Keys.masterOnly(null);
 
   /// Encrypts [value] with the master key (AES-GCM, random IV).
   static ({String value, String iv}) encode(String value) =>
