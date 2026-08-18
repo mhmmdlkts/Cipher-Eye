@@ -26,6 +26,9 @@ class HistoryService {
   static Future<void> saveUpdateHistory(String itemId, {String? vaultId}) =>
       _save('update', itemId: itemId, vaultId: vaultId);
 
+  static Future<void> saveExportHistory(String itemId, {String? vaultId}) =>
+      _save('export', itemId: itemId, vaultId: vaultId);
+
   static Future<void> saveShowKey() => _save('key');
 
   /// Repository hook: create/update/delete events by action name.
