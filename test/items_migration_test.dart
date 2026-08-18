@@ -51,4 +51,21 @@ void main() {
     expect((await to.get()).docs.length, 1);
     expect((await from.get()).docs, isEmpty);
   });
+
+  test('a resumed run never overwrites an edited copy in items', () async {
+    final from = db.collection('users').doc('u').collection('passwords');
+    final to = db.collection('users').doc('u').collection('items');
+    await from.doc('a').set({'website': 'A', 'value': 'old', 'iv': 'i', 'v': 2});
+    await to.doc('a').set({'title': 'A', 'type': 'password', 'value': 'edited', 'iv': 'j', 'v': 2, 'isFavorite': true});
+    await svc().run();
+    final data = (await to.doc('a').get()).data()!;
+    expect(data['value'], 'edited');
+    expect(data['isFavorite'], true);
+    expect((await from.get()).docs, isEmpty);
+  });
+
+  test('bumpProfile=false leaves the profile untouched', () async {
+    await svc().run(bumpProfile: false);
+    expect((await db.collection('users').doc('u').get()).exists, isFalse);
+  });
 }

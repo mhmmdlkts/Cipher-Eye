@@ -287,7 +287,7 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
       await notifier.save(item);
       if (!mounted) return;
       Haptics.success();
-      Navigator.pop(context);
+      Navigator.pop(context, item);
     } catch (e) {
       Haptics.warning();
       _snack('Speichern fehlgeschlagen: $e');

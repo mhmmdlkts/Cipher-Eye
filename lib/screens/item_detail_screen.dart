@@ -31,7 +31,8 @@ class ItemDetailScreen extends ConsumerStatefulWidget {
 
 class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
   final Set<String> _revealed = {};
-  Item get item => widget.item;
+  late Item _item = widget.item;
+  Item get item => _item;
 
   Future<void> _copy(String label, String value) async {
     if (!ref.read(hasKeyProvider)) return;
@@ -97,8 +98,13 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
       ItemType.file => FileEditorScreen(existing: item),
       ItemType.password => NoteEditorScreen(existing: item),
     };
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => editor));
-    if (mounted) setState(() {});
+    final updated = await Navigator.push<Item>(
+        context, MaterialPageRoute(builder: (_) => editor));
+    if (!mounted) return;
+    setState(() {
+      // A move re-creates the item; keep showing the live one.
+      if (updated != null) _item = updated;
+    });
   }
 
   bool _exporting = false;

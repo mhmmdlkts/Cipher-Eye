@@ -15,6 +15,12 @@ class VaultsNotifier extends Notifier<List<Vault>> {
   Future<void> refresh() async {
     await ItemService.reloadVaults();
     state = List.of(ItemService.vaults);
+    final filter = ref.read(sourceFilterProvider);
+    if (filter != null &&
+        filter != kPersonalSource &&
+        !state.any((v) => v.id == filter)) {
+      ref.read(sourceFilterProvider.notifier).state = null;
+    }
     ref.read(itemsProvider.notifier).refresh();
   }
 

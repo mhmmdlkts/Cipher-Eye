@@ -100,7 +100,25 @@ class VaultService {
     vault.name = name.trim();
   }
 
+  /// Deletes the open invites a member created (used when they leave or are
+  /// removed, so their codes cannot be redeemed afterwards).
+  Future<void> _revokeInvitesOf(String vaultId, String memberUid) async {
+    try {
+      final snap = await vaultsCol
+          .doc(vaultId)
+          .collection('invites')
+          .where('createdBy', isEqualTo: memberUid)
+          .get();
+      for (final d in snap.docs) {
+        await d.reference.delete();
+      }
+    } catch (_) {
+      // Rules also refuse invites of non-members; this is belt and braces.
+    }
+  }
+
   Future<void> leave(Vault vault) async {
+    await _revokeInvitesOf(vault.id, uid);
     final batch = db.batch();
     batch.update(vaultsCol.doc(vault.id), {
       'memberIds': FieldValue.arrayRemove([uid]),
@@ -112,6 +130,7 @@ class VaultService {
   }
 
   Future<void> removeMember(Vault vault, String memberUid) async {
+    await _revokeInvitesOf(vault.id, memberUid);
     await vaultsCol.doc(vault.id).update({
       'memberIds': FieldValue.arrayRemove([memberUid]),
       'memberNames.$memberUid': FieldValue.delete(),

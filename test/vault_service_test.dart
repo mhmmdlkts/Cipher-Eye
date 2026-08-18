@@ -74,4 +74,18 @@ void main() {
     await fresh.loadKeys(mine);
     expect(fresh.keysStore.get(vault.id)!.base64, a.keysStore.get(vault.id)!.base64);
   });
+
+  test('invites of a removed or leaving member are revoked', () async {
+    final a = svc('aaaaaa'), b = svc('bbbbbb'), c = svc('cccccc');
+    final vault = await a.create('X');
+    await b.join(await a.createInvite(vault));
+    final bInvite = await b.createInvite(vault);
+    await a.removeMember(vault, 'bbbbbb');
+    expect(() => c.join(bInvite), throwsA(isA<InviteError>()));
+
+    await b.join(await a.createInvite(vault));
+    final bInvite2 = await b.createInvite(vault);
+    await b.leave(vault);
+    expect(() => c.join(bInvite2), throwsA(isA<InviteError>()));
+  });
 }

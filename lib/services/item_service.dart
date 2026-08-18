@@ -43,8 +43,14 @@ class ItemService {
     AttachmentService.instance.clearCache();
   }
 
-  static ItemRepository repoFor(String? vaultId) =>
-      vaultId == null ? personal : vaultRepos[vaultId]!;
+  static ItemRepository repoFor(String? vaultId) {
+    if (vaultId == null) return personal;
+    final repo = vaultRepos[vaultId];
+    if (repo == null) {
+      throw StateError('Tresor nicht verfügbar oder gesperrt');
+    }
+    return repo;
+  }
 
   static Vault? vaultById(String? id) {
     if (id == null) return null;
@@ -54,22 +60,27 @@ class ItemService {
     return null;
   }
 
+  /// Offline, Firestore writes never resolve — don't let the migration hang
+  /// the splash screen; fall back to reading both collections instead.
+  static const Duration _migrationTimeout = Duration(seconds: 20);
+
   static Future<void> init() async {
     personal = ItemRepository(FirestorePathsService.getItemsCol());
-    var migrated =
+    // Always sweep the legacy collection: an older app version on another
+    // device may still write there after this account was migrated.
+    final alreadyMigrated =
         PersonService.person.dataVersion >= PersonService.kDataVersion;
-    if (!migrated) {
-      try {
-        await ItemsMigrationService(
-          from: FirestorePathsService.getPasswordCol(),
-          to: FirestorePathsService.getItemsCol(),
-          profile: FirestorePathsService.getUserDoc(),
-        ).run();
-        PersonService.person.dataVersion = PersonService.kDataVersion;
-        migrated = true;
-      } catch (_) {
-        // Fall back to reading both collections; retried on next launch.
-      }
+    var migrated = false;
+    try {
+      await ItemsMigrationService(
+        from: FirestorePathsService.getPasswordCol(),
+        to: FirestorePathsService.getItemsCol(),
+        profile: FirestorePathsService.getUserDoc(),
+      ).run(bumpProfile: !alreadyMigrated).timeout(_migrationTimeout);
+      PersonService.person.dataVersion = PersonService.kDataVersion;
+      migrated = true;
+    } catch (_) {
+      // Fall back to reading both collections; retried on next launch.
     }
     await personal.load(
         extraSources:
@@ -103,7 +114,7 @@ class ItemService {
       vaults = [];
     }
     if (_keys != null) await vaultService.loadKeys(vaults);
-    vaultRepos.clear();
+    final fresh = <String, ItemRepository>{};
     for (final v in vaults) {
       if (isLocked(v.id)) continue;
       final repo = ItemRepository(
@@ -113,11 +124,15 @@ class ItemService {
       );
       try {
         await repo.load();
-        vaultRepos[v.id] = repo;
+        fresh[v.id] = repo;
       } catch (_) {
         // Membership may have been revoked meanwhile — skip this vault only.
       }
     }
+    // Swap in one go so UI actions during the reload never see a half-built map.
+    vaultRepos
+      ..clear()
+      ..addAll(fresh);
   }
 
   static Future<void> incrementUsage(String itemId, {required bool copy}) {
@@ -134,18 +149,31 @@ class ItemService {
     final versions = item.type == ItemType.password && !item.isDraft
         ? from.versionsOf(item.purposeId!)
         : [item];
+    // Copy everything first; only when every copy is stored is the source
+    // deleted, so a failure midway leaves the original untouched.
+    final copies = <Item>[];
     Item? moved;
-    for (final v in versions) {
-      final plain = v.decrypted();
-      final copy =
-          Item.copyTo(v, col: to.col, vaultId: toVaultId, plainText: plain);
-      if (v.hasAttachments) {
-        copy.attachments = await AttachmentService.instance.copyAll(v, copy);
+    try {
+      for (final v in versions) {
+        final plain = v.decrypted();
+        final copy =
+            Item.copyTo(v, col: to.col, vaultId: toVaultId, plainText: plain);
+        if (v.hasAttachments) {
+          copy.attachments = await AttachmentService.instance.copyAll(v, copy);
+        }
+        await to.save(copy);
+        copies.add(copy);
+        if (v.id == item.id) moved = copy;
       }
-      await to.save(copy);
-      if (v.id == item.id) moved = copy;
+    } catch (e) {
+      for (final c in copies) {
+        try {
+          await to.delete(c);
+        } catch (_) {}
+      }
+      rethrow;
     }
     await from.delete(item);
-    return moved!;
+    return moved ?? copies.first;
   }
 }

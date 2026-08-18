@@ -88,13 +88,14 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     );
     final notifier = ref.read(itemsProvider.notifier);
     final existing = widget.existing;
+    Item? result = existing;
     try {
       if (existing != null) {
         existing.setPayload(
             title: _title.text.trim(), plainJson: data.encode());
         await notifier.save(existing);
         if (_vaultId != existing.vaultId) {
-          await notifier.move(existing, _vaultId);
+          result = await notifier.move(existing, _vaultId);
         }
       } else {
         await notifier.add(Item.payload(
@@ -107,7 +108,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       }
       if (!mounted) return;
       Haptics.success();
-      Navigator.pop(context);
+      Navigator.pop(context, result);
     } catch (e) {
       Haptics.warning();
       if (mounted) {

@@ -113,7 +113,7 @@ class _FileEditorScreenState extends ConsumerState<FileEditorScreen> {
       }
       if (!mounted) return;
       Haptics.success();
-      Navigator.pop(context);
+      Navigator.pop(context, item);
     } catch (e) {
       Haptics.warning();
       if (mounted) {

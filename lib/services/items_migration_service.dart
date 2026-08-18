@@ -15,15 +15,19 @@ class ItemsMigrationService {
 
   static const int _batchLimit = 400;
 
-  Future<bool> run() async {
+  Future<bool> run({bool bumpProfile = true}) async {
     final legacy = (await from.get()).docs;
 
-    // 1) Copy (merge, so a resumed run doesn't clobber a finished copy).
-    for (var i = 0; i < legacy.length; i += _batchLimit) {
+    // 1) Copy only docs that are not in the target yet: a resumed run must
+    //    never overwrite a copy the user has edited meanwhile.
+    final missing = <QueryDocumentSnapshot>[];
+    for (final d in legacy) {
+      if (!(await to.doc(d.id).get()).exists) missing.add(d);
+    }
+    for (var i = 0; i < missing.length; i += _batchLimit) {
       final batch = to.firestore.batch();
-      for (final d in legacy.skip(i).take(_batchLimit)) {
-        batch.set(to.doc(d.id), _convert(d.data() as Map<String, dynamic>),
-            SetOptions(merge: true));
+      for (final d in missing.skip(i).take(_batchLimit)) {
+        batch.set(to.doc(d.id), _convert(d.data() as Map<String, dynamic>));
       }
       await batch.commit();
     }
@@ -45,8 +49,10 @@ class ItemsMigrationService {
     }
 
     // 4) Mark the account.
-    await profile.set(
-        {'dataVersion': PersonService.kDataVersion}, SetOptions(merge: true));
+    if (bumpProfile) {
+      await profile.set(
+          {'dataVersion': PersonService.kDataVersion}, SetOptions(merge: true));
+    }
     return true;
   }
 

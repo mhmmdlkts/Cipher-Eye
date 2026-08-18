@@ -59,7 +59,9 @@ service cloud.firestore {
           && request.resource.data.memberNames.diff(resource.data.memberNames).affectedKeys().hasOnly([request.auth.uid])
           && inv != null
           && inv.data.usedBy == null
-          && inv.data.expiresAt > request.time;
+          && inv.data.expiresAt > request.time
+          // Invites of members that were removed meanwhile are void.
+          && inv.data.createdBy in resource.data.memberIds;
       }
       function isSelfLeave() {
         return changedOnly(['memberIds', 'memberNames'])
@@ -83,7 +85,9 @@ service cloud.firestore {
         allow read, write: if isVaultMember(vaultId);
       }
       match /history/{eventId} {
-        allow create, read: if isVaultMember(vaultId);
+        allow read: if isVaultMember(vaultId);
+        allow create: if isVaultMember(vaultId)
+          && request.resource.data.uid == request.auth.uid;
         allow update, delete: if false;
       }
       match /invites/{inviteId} {

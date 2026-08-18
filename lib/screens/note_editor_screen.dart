@@ -51,13 +51,14 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     final data = NoteData(text: _text.text.trim());
     final notifier = ref.read(itemsProvider.notifier);
     final existing = widget.existing;
+    Item? result = existing;
     try {
       if (existing != null) {
         existing.setPayload(
             title: _title.text.trim(), plainJson: data.encode());
         await notifier.save(existing);
         if (_vaultId != existing.vaultId) {
-          await notifier.move(existing, _vaultId);
+          result = await notifier.move(existing, _vaultId);
         }
       } else {
         await notifier.add(Item.payload(
@@ -70,7 +71,7 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       }
       if (!mounted) return;
       Haptics.success();
-      Navigator.pop(context);
+      Navigator.pop(context, result);
     } catch (e) {
       Haptics.warning();
       if (mounted) {
