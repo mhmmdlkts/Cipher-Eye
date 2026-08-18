@@ -9,16 +9,8 @@ import 'history_service.dart';
 /// history later).
 typedef HistoryLogger = void Function(String action, String itemId);
 
-void _defaultHistory(String action, String itemId) {
-  switch (action) {
-    case 'create':
-      HistoryService.saveCreateHistory(itemId);
-    case 'update':
-      HistoryService.saveUpdateHistory(itemId);
-    case 'delete':
-      HistoryService.saveDeleteHistory(itemId);
-  }
-}
+void _defaultHistory(String action, String itemId) =>
+    HistoryService.log(action, itemId);
 
 /// All items of one collection (the personal `items` collection today; one
 /// per vault later). Owns loading, version bookkeeping and persistence.

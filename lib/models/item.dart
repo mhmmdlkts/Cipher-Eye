@@ -208,7 +208,7 @@ class Item implements Comparable<Item> {
 
   String getPlainText() {
     if (_plainText == null) {
-      HistoryService.saveCopyHistory(id!);
+      HistoryService.saveCopyHistory(id!, vaultId: vaultId);
       _plainText = _decrypt(value!, iv, v);
     }
     return _plainText!;

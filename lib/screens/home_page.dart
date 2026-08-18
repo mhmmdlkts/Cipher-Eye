@@ -297,7 +297,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     Haptics.selection();
     setState(() => pass.isVisible = !pass.isVisible);
     if (revealing) {
-      HistoryService.saveViewHistory(pass.id!);
+      HistoryService.saveViewHistory(pass.id!, vaultId: pass.vaultId);
       ItemService.incrementUsage(pass.id!, copy: false);
     }
   }
@@ -309,7 +309,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
     final messenger = ScaffoldMessenger.of(context);
     await ClipboardService.copySensitive(pass.decrypted());
-    HistoryService.saveCopyHistory(pass.id!);
+    HistoryService.saveCopyHistory(pass.id!, vaultId: pass.vaultId);
     ItemService.incrementUsage(pass.id!, copy: true);
     messenger.showSnackBar(const SnackBar(
       content: Text('Kopiert – wird in 30 s aus der Zwischenablage gelöscht'),

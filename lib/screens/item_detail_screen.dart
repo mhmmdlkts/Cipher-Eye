@@ -32,7 +32,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
     if (!ref.read(hasKeyProvider)) return;
     Haptics.selection();
     await ClipboardService.copySensitive(value);
-    HistoryService.saveCopyHistory(item.id!);
+    HistoryService.saveCopyHistory(item.id!, vaultId: item.vaultId);
     ItemService.incrementUsage(item.id!, copy: true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -47,7 +47,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
     final revealing = !_revealed.contains(key);
     setState(() => revealing ? _revealed.add(key) : _revealed.remove(key));
     if (revealing) {
-      HistoryService.saveViewHistory(item.id!);
+      HistoryService.saveViewHistory(item.id!, vaultId: item.vaultId);
       ItemService.incrementUsage(item.id!, copy: false);
     }
   }

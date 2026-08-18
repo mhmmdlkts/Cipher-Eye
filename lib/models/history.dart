@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../services/firestore_paths_service.dart';
+import '../services/person_service.dart';
 import 'package:geolocator/geolocator.dart';
 
 class History {
@@ -19,11 +20,25 @@ class History {
   String? userAgent;
   String? ip;
 
-  History.create({required this.action, this.password}) {
+  /// null = the user's own history, otherwise the shared vault's history.
+  String? vaultId;
+  String? displayName;
+
+  History.create({required this.action, this.password, this.vaultId}) {
     timestamp = Timestamp.now();
-    id = FirestorePathsService.getHistoryCol().doc().id;
+    id = _col().doc().id;
     uid = FirebaseAuth.instance.currentUser!.uid;
+    if (vaultId != null && PersonService.isInited()) {
+      displayName = PersonService.person.name;
+    }
   }
+
+  CollectionReference _col() => vaultId == null
+      ? FirestorePathsService.getHistoryCol()
+      : FirebaseFirestore.instance
+          .collection('vaults')
+          .doc(vaultId)
+          .collection('history');
 
   Future init() async {
     await Future.wait([
@@ -116,6 +131,12 @@ class History {
     if (o.containsKey('ip')) {
       ip = o['ip'];
     }
+    if (o.containsKey('uid')) {
+      uid = o['uid'];
+    }
+    if (o.containsKey('displayName')) {
+      displayName = o['displayName'];
+    }
   }
 
   Map<String, dynamic> toJson({bool withNull = true}) {
@@ -127,6 +148,8 @@ class History {
       'deviceInfo': deviceInfo,
       'userAgent': userAgent,
       'ip': ip,
+      'uid': uid,
+      'displayName': displayName,
     };
     if (withNull) {
       return map;
@@ -140,6 +163,6 @@ class History {
     return newMap;
   }
 
-  Future push() async => await FirestorePathsService.geHistoryDoc(historyId: id!).set(toJson());
-  Future update() async => await FirestorePathsService.geHistoryDoc(historyId: id!).update(toJson(withNull: false));
+  Future push() async => await _col().doc(id!).set(toJson());
+  Future update() async => await _col().doc(id!).update(toJson(withNull: false));
 }

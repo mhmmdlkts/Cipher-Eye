@@ -110,8 +110,8 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     ));
     // Log this copy (with location) + count it, then refresh the history.
     ItemService.incrementUsage(pass.id!, copy: true);
-    HistoryService.saveCopyHistory(pass.id!).whenComplete(() {
-      if (mounted) ref.invalidate(passwordHistoryProvider(pass.id!));
+    HistoryService.saveCopyHistory(pass.id!, vaultId: pass.vaultId).whenComplete(() {
+      if (mounted) ref.invalidate(passwordHistoryProvider((vaultId: pass.vaultId, itemId: pass.id!)));
     });
   }
 
@@ -125,8 +125,8 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     setState(() => _revealed = !_revealed);
     if (revealing) {
       ItemService.incrementUsage(pass.id!, copy: false);
-      HistoryService.saveViewHistory(pass.id!).whenComplete(() {
-        if (mounted) ref.invalidate(passwordHistoryProvider(pass.id!));
+      HistoryService.saveViewHistory(pass.id!, vaultId: pass.vaultId).whenComplete(() {
+        if (mounted) ref.invalidate(passwordHistoryProvider((vaultId: pass.vaultId, itemId: pass.id!)));
       });
     }
   }
@@ -134,7 +134,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final historyAsync = ref.watch(passwordHistoryProvider(pass.id!));
+    final historyAsync = ref.watch(passwordHistoryProvider((vaultId: pass.vaultId, itemId: pass.id!)));
     return Scaffold(
       backgroundColor: scheme.surface,
       appBar: AppBar(
@@ -300,7 +300,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
   }
 
   Widget _previousVersions(ColorScheme scheme) {
-    final older = ItemService.versionsOf(pass.purposeId ?? '')
+    final older = ItemService.versionsOf(pass.purposeId ?? '', vaultId: pass.vaultId)
         .where((p) => p.id != pass.id)
         .toList();
     if (older.isEmpty) return const SizedBox.shrink();
