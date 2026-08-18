@@ -8,12 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kreiseck_branding/kreiseck_branding.dart';
 
 import 'firebase_options.dart';
+import 'services/app_check_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await AppCheckService.activate();
   runApp(const ProviderScope(child: MyApp()));
 }
 
