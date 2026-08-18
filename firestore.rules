@@ -1,0 +1,34 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Profile: owner reads/writes (name, usernames, securityVersion, dataVersion).
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Unified items (passwords, cards, notes, documents, files).
+    match /users/{userId}/items/{itemId} {
+      allow read, create, update, delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Legacy password collection: kept until every installed app version has
+    // migrated its data into /items.
+    match /users/{userId}/passwords/{passwordId} {
+      allow read, create, update, delete: if isAuthenticated() && isOwner(userId);
+    }
+
+    // History: append-only, owner only.
+    match /users/{userId}/history/{historyId} {
+      allow create, read: if isAuthenticated() && isOwner(userId);
+      allow update, delete: if false;
+    }
+  }
+}
