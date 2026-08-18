@@ -30,5 +30,82 @@ service cloud.firestore {
       allow create, read: if isAuthenticated() && isOwner(userId);
       allow update, delete: if false;
     }
+
+    // ---- Shared vaults ---------------------------------------------------
+    function vaultDoc(vaultId) {
+      return get(/databases/$(database)/documents/vaults/$(vaultId)).data;
+    }
+    function isVaultMember(vaultId) {
+      return isAuthenticated() && request.auth.uid in vaultDoc(vaultId).memberIds;
+    }
+
+    match /vaults/{vaultId} {
+      function isMemberOfThis() {
+        return request.auth.uid in resource.data.memberIds;
+      }
+      function isOwnerOfThis() {
+        return resource.data.ownerId == request.auth.uid;
+      }
+      function changedOnly(keys) {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+      }
+      // A join adds exactly the caller to memberIds/memberNames and names a
+      // valid, unused invite (doc id = sha256 of the secret in the code).
+      function isValidJoin() {
+        let inv = get(/databases/$(database)/documents/vaults/$(vaultId)/invites/$(request.resource.data.joinInvite));
+        return changedOnly(['memberIds', 'memberNames', 'joinInvite'])
+          && !(request.auth.uid in resource.data.memberIds)
+          && request.resource.data.memberIds == resource.data.memberIds.concat([request.auth.uid])
+          && request.resource.data.memberNames.diff(resource.data.memberNames).affectedKeys().hasOnly([request.auth.uid])
+          && inv != null
+          && inv.data.usedBy == null
+          && inv.data.expiresAt > request.time;
+      }
+      function isSelfLeave() {
+        return changedOnly(['memberIds', 'memberNames'])
+          && !isOwnerOfThis()
+          && request.resource.data.memberIds == resource.data.memberIds.removeAll([request.auth.uid])
+          && request.resource.data.memberNames.diff(resource.data.memberNames).affectedKeys().hasOnly([request.auth.uid]);
+      }
+
+      allow get: if isAuthenticated() && isMemberOfThis();
+      allow list: if isAuthenticated() && isMemberOfThis();
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberIds == [request.auth.uid];
+      allow update: if isAuthenticated() && (
+        (isOwnerOfThis() && request.resource.data.ownerId == resource.data.ownerId)
+        || isSelfLeave()
+        || isValidJoin());
+      allow delete: if isAuthenticated() && isOwnerOfThis();
+
+      match /items/{itemId} {
+        allow read, write: if isVaultMember(vaultId);
+      }
+      match /history/{eventId} {
+        allow create, read: if isVaultMember(vaultId);
+        allow update, delete: if false;
+      }
+      match /invites/{inviteId} {
+        allow create: if isVaultMember(vaultId)
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.usedBy == null;
+        // Anyone who knows the (secret-derived) id may read a single invite;
+        // listing stays members-only.
+        allow get: if isAuthenticated();
+        allow list: if isVaultMember(vaultId);
+        // Redeeming: the joiner stamps usedBy/usedAt exactly once.
+        allow update: if isAuthenticated()
+          && resource.data.usedBy == null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy', 'usedAt'])
+          && request.resource.data.usedBy == request.auth.uid;
+        allow delete: if isVaultMember(vaultId);
+      }
+    }
+
+    // Wrapped vault keys: only the user themselves.
+    match /users/{userId}/vaultKeys/{vaultId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
   }
 }
