@@ -99,6 +99,28 @@ class ItemRepository {
     await item.push();
   }
 
+  /// Renames a password purpose (website/username) across all its versions
+  /// so the history stays together under the new purposeId.
+  Future<void> updatePasswordMeta(Item item,
+      {required String website, required String username}) async {
+    final versions = item.isDraft ? [item] : versionsOf(item.purposeId ?? '');
+    final purposeId = Item.purposeIdCreate(website: website, username: username);
+    for (final v in versions) {
+      v.title = website;
+      v.username = username;
+      v.purposeId = purposeId;
+      v.updatedAt = Timestamp.now();
+      await v.ref!.update({
+        'title': website,
+        'username': username,
+        'purposeId': purposeId,
+        'updatedAt': v.updatedAt,
+      });
+    }
+    _recomputeLatest();
+    _history('update', item.id!);
+  }
+
   /// In-place save (drafts, non-password types).
   Future<void> save(Item item) async {
     item.vaultId = vaultId;

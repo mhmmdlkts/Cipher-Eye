@@ -134,7 +134,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: Column(
         children: [
           if (!hasKey) _noKeyBanner(),
-          if (ref.watch(vaultsProvider).isNotEmpty) _sourceChips(),
+          if (ref.watch(vaultsProvider).isNotEmpty &&
+              (_showSearchBar || ref.watch(sourceFilterProvider) != null))
+            _sourceChips(),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => ref.read(vaultsProvider.notifier).refresh(),

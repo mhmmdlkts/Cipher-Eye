@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kreiseck_validator/kreiseck_validator.dart';
 
 import '../models/item.dart';
 import '../models/item_payload.dart';
@@ -35,7 +36,37 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   final _bank = TextEditingController();
   final _note = TextEditingController();
   final _pages = PagesEditorController();
+  final _form = GlobalKey<FormState>();
   bool _saving = false;
+
+  static String? _validateNumber(String? v) {
+    final t = (v ?? '').trim();
+    if (t.isEmpty) return null;
+    return CreditCard.isValid(t) ? null : 'Kartennummer ungültig (Prüfziffer)';
+  }
+
+  static String? _validateCvv(String? v) {
+    final t = (v ?? '').trim();
+    if (t.isEmpty) return null;
+    return RegExp(r'^\d{3,4}$').hasMatch(t)
+        ? null
+        : 'CVV hat 3 oder 4 Ziffern';
+  }
+
+  static String? _validateIban(String? v) {
+    final t = (v ?? '').trim();
+    if (t.isEmpty) return null;
+    return Iban.isValid(t) ? null : 'IBAN ungültig';
+  }
+
+  static String? _validateExpiry(String? v) {
+    final t = (v ?? '').trim();
+    if (t.isEmpty) return null;
+    return RegExp(r'^(0[1-9]|1[0-2])/\d{2}$').hasMatch(t)
+        ? null
+        : 'Format MM/JJ';
+  }
+
   String? _vaultId;
 
   @override
@@ -85,6 +116,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
         filled++;
       }
     }
+
     put(_number, r.number);
     put(_expiry, r.expiry);
     put(_holder, r.holder);
@@ -93,7 +125,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     setState(() {});
     Haptics.selection();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Kartendaten erkannt ($filled Feld${filled == 1 ? '' : 'er'} vorausgefüllt – bitte prüfen)'),
+        content: Text(
+            'Kartendaten erkannt ($filled Feld${filled == 1 ? '' : 'er'} vorausgefüllt – bitte prüfen)'),
         duration: const Duration(seconds: 3)));
   }
 
@@ -119,14 +152,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
   Future<void> _save() async {
     if (_title.text.trim().isEmpty || !ref.read(hasKeyProvider)) return;
+    if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
+    final iban = _iban.text.trim();
     final data = CardData(
-      number: _number.text.trim(),
+      number: CreditCard.tryFormat(_number.text.trim()) ?? _number.text.trim(),
       holder: _holder.text.trim(),
       expiry: _expiry.text.trim(),
       cvv: _cvv.text.trim(),
       pin: _pin.text.trim(),
-      iban: _iban.text.trim(),
+      iban: iban.isEmpty ? '' : (Iban.tryFormat(iban) ?? iban),
       bank: _bank.text.trim(),
       note: _note.text.trim(),
     );
@@ -173,100 +208,112 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           title: Text(
               widget.existing == null ? 'Neue Karte' : 'Karte bearbeiten')),
       backgroundColor: Theme.of(context).colorScheme.surface,
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          SourcePicker(
-              value: _vaultId,
-              enabled: !_saving,
-              onChanged: (v) => setState(() => _vaultId = v)),
-          AppTextField(
-              controller: _title,
-              label: 'Bezeichnung',
-              hint: 'z. B. Visa Sparkasse',
-              prefixIcon: Icons.credit_card,
-              onChanged: (_) => setState(() {})),
-          const SizedBox(height: 12),
-          AppTextField(
-              controller: _number,
-              label: 'Kartennummer',
-              hint: '1234 5678 9012 3456',
-              prefixIcon: Icons.numbers,
-              keyboardType: TextInputType.number,
-              inputFormatters: [CardNumberFormatter()]),
-          const SizedBox(height: 12),
-          AppTextField(
-              controller: _holder,
-              label: 'Karteninhaber',
-              hint: 'Name wie auf der Karte',
-              prefixIcon: Icons.person_outline),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(
-                child: MonthYearField(
-                    controller: _expiry, enabled: !_saving)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: AppTextField(
-                    controller: _cvv,
-                    label: 'CVV',
-                    hint: '123',
-                    prefixIcon: Icons.lock_outline,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
-          ]),
-          const SizedBox(height: 12),
-          AppTextField(
-              controller: _pin,
-              label: 'PIN',
-              hint: 'optional',
-              prefixIcon: Icons.pin_outlined,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
-          const SizedBox(height: 12),
-          AppTextField(
-              controller: _iban,
-              label: 'IBAN',
-              hint: 'optional',
-              prefixIcon: Icons.account_balance_outlined),
-          const SizedBox(height: 12),
-          AppTextField(
-              controller: _bank,
-              label: 'Bank',
-              hint: 'optional',
-              prefixIcon: Icons.account_balance),
-          const SizedBox(height: 12),
-          AppTextField(
-              controller: _note,
-              label: 'Notiz',
-              hint: 'optional',
-              prefixIcon: Icons.notes,
-              maxLines: 3),
-          const SizedBox(height: 20),
-          PagesEditor(controller: _pages, enabled: !_saving),
-          const SizedBox(height: 24),
-          if (_pages.progress != null) ...[
-            const LinearProgressIndicator(),
-            const SizedBox(height: 6),
-            Text(_pages.progress!,
-                style: Theme.of(context).textTheme.bodySmall),
+      body: Form(
+        key: _form,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            SourcePicker(
+                value: _vaultId,
+                enabled: !_saving,
+                onChanged: (v) => setState(() => _vaultId = v)),
+            AppTextField(
+                controller: _title,
+                label: 'Bezeichnung',
+                hint: 'z. B. Visa Sparkasse',
+                prefixIcon: Icons.credit_card,
+                onChanged: (_) => setState(() {})),
             const SizedBox(height: 12),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _title.text.trim().isEmpty || _saving ? null : _save,
-              child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: _saving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Speichern')),
+            AppTextField(
+                controller: _number,
+                label: 'Kartennummer',
+                hint: '1234 5678 9012 3456',
+                prefixIcon: Icons.numbers,
+                keyboardType: TextInputType.number,
+                validator: _validateNumber,
+                inputFormatters: [CardNumberFormatter()]),
+            const SizedBox(height: 12),
+            AppTextField(
+                controller: _holder,
+                label: 'Karteninhaber',
+                hint: 'Name wie auf der Karte',
+                prefixIcon: Icons.person_outline),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                  child: MonthYearField(
+                      controller: _expiry,
+                      enabled: !_saving,
+                      validator: _validateExpiry)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: AppTextField(
+                      controller: _cvv,
+                      label: 'CVV',
+                      hint: '123',
+                      prefixIcon: Icons.lock_outline,
+                      keyboardType: TextInputType.number,
+                      maxLength: 4,
+                      validator: _validateCvv,
+                      inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly
+                  ])),
+            ]),
+            const SizedBox(height: 12),
+            AppTextField(
+                controller: _pin,
+                label: 'PIN',
+                hint: 'optional',
+                prefixIcon: Icons.pin_outlined,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
+            const SizedBox(height: 12),
+            AppTextField(
+                controller: _iban,
+                label: 'IBAN',
+                hint: 'optional',
+                prefixIcon: Icons.account_balance_outlined,
+                validator: _validateIban),
+            const SizedBox(height: 12),
+            AppTextField(
+                controller: _bank,
+                label: 'Bank',
+                hint: 'optional',
+                prefixIcon: Icons.account_balance),
+            const SizedBox(height: 12),
+            AppTextField(
+                controller: _note,
+                label: 'Notiz',
+                hint: 'optional',
+                prefixIcon: Icons.notes,
+                maxLines: 3),
+            const SizedBox(height: 20),
+            PagesEditor(controller: _pages, enabled: !_saving),
+            const SizedBox(height: 24),
+            if (_pages.progress != null) ...[
+              const LinearProgressIndicator(),
+              const SizedBox(height: 6),
+              Text(_pages.progress!,
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 12),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _title.text.trim().isEmpty || _saving ? null : _save,
+                child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: _saving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Speichern')),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

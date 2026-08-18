@@ -72,11 +72,13 @@ class MonthYearField extends StatelessWidget {
     required this.controller,
     this.label = 'Gültig bis',
     this.enabled = true,
+    this.validator,
   });
 
   final TextEditingController controller;
   final String label;
   final bool enabled;
+  final String? Function(String?)? validator;
 
   Future<void> _pick(BuildContext context) async {
     final now = DateTime.now();
@@ -142,6 +144,7 @@ class MonthYearField extends StatelessWidget {
           hint: 'MM/JJ',
           prefixIcon: Icons.event,
           enabled: enabled,
+          validator: validator,
           suffix: controller.text.isEmpty
               ? null
               : IconButton(

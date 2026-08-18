@@ -926,6 +926,14 @@ packages:
       url: "https://github.com/mhmmdlkts/Kreiseck-Branding.git"
     source: git
     version: "0.1.0"
+  kreiseck_validator:
+    dependency: "direct main"
+    description:
+      name: kreiseck_validator
+      sha256: "5d4b432c2bff4c814e72424535a39f04183757f9b4d53cbe88b9985ae8c76b13"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.12.1"
   leak_tracker:
     dependency: transitive
     description:

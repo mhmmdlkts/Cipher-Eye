@@ -54,6 +54,18 @@ class ItemsNotifier extends Notifier<List<Item>> {
     refresh();
   }
 
+  /// Website/username of a password (all versions), then optional move.
+  Future<Item> updatePasswordMeta(Item item,
+      {required String website,
+      required String username,
+      required String? toVaultId}) async {
+    await ItemService.repoFor(item.vaultId)
+        .updatePasswordMeta(item, website: website, username: username);
+    refresh();
+    if (item.vaultId == toVaultId) return item;
+    return move(item, toVaultId);
+  }
+
   /// Saves an edited item, moving it when the chosen location differs from
   /// where it lives. Returns the live item (a move re-creates it).
   Future<Item> saveAndPlace(Item item, String? toVaultId) async {

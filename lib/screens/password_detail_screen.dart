@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/history.dart';
 import '../models/item.dart';
 import 'add_new_password_screen.dart';
+import 'password_edit_screen.dart';
 import 'log_detail_screen.dart';
 import '../providers/history_provider.dart';
 import '../providers/key_provider.dart';
@@ -29,9 +30,11 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
   bool _revealed = false;
   final Set<String> _revealedVersions = {};
 
-  Item get pass => widget.password;
+  late Item _pass = widget.password;
+  Item get pass => _pass;
 
-  Future<void> _edit() async {
+  /// "Passwort ändern": stores a new version; the old one stays viewable.
+  Future<void> _changePassword() async {
     if (!ref.read(hasKeyProvider)) {
       _warnNoKey();
       return;
@@ -42,6 +45,20 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     ));
     // pass is now an older version; return to the (refreshed) list.
     if (mounted) navigator.pop();
+  }
+
+  /// "Bearbeiten": website, username and location — not the password.
+  Future<void> _edit() async {
+    if (!ref.read(hasKeyProvider)) {
+      _warnNoKey();
+      return;
+    }
+    final updated = await Navigator.push<Item>(context,
+        MaterialPageRoute(builder: (_) => PasswordEditScreen(pass)));
+    if (!mounted) return;
+    setState(() {
+      if (updated != null) _pass = updated;
+    });
   }
 
   Future<void> _confirmDelete() async {
@@ -275,6 +292,18 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
             Text('Antippen zum Kopieren',
                 style: TextStyle(
                     fontSize: 12, color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _changePassword,
+                icon: const Icon(Icons.password),
+                label: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text('Passwort ändern'),
+                ),
+              ),
+            ),
           ],
         ),
       ),
