@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() { return request.auth != null; }
+    function isVaultMember(vaultId) {
+      return isAuthenticated()
+        && request.auth.uid in firestore.get(/databases/(default)/documents/vaults/$(vaultId)).data.memberIds;
+    }
+    function sizeOk() { return request.resource == null || request.resource.size < 20 * 1024 * 1024; }
+
+    // Encrypted item attachments; paths mirror the Firestore item documents.
+    match /users/{userId}/items/{itemId}/{attId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId && sizeOk();
+    }
+    match /vaults/{vaultId}/items/{itemId}/{attId} {
+      allow read: if isVaultMember(vaultId);
+      allow write: if isVaultMember(vaultId) && sizeOk();
+    }
+  }
+}
