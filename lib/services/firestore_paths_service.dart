@@ -6,6 +6,7 @@ class FirestorePathsService {
   static const String _usersKey = "users";
   static const String _historyKey = "history";
   static const String _passwordsKey = "passwords";
+  static const String _itemsKey = "items";
 
   static DocumentReference getUserDoc() => FirebaseFirestore.instance.collection(_usersKey).doc(FirebaseAuth.instance.currentUser!.uid);
 
@@ -14,4 +15,7 @@ class FirestorePathsService {
 
   static CollectionReference getPasswordCol() => getUserDoc().collection(_passwordsKey);
   static DocumentReference getPasswordDoc({required String passwordId}) => getPasswordCol().doc(passwordId);
+
+  static CollectionReference getItemsCol() => getUserDoc().collection(_itemsKey);
+  static DocumentReference getItemDoc({required String itemId}) => getItemsCol().doc(itemId);
 }

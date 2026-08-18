@@ -72,7 +72,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
       _usernameController.text = usernames.isNotEmpty ? usernames.first : '';
       _generate(rebuild: false);
       final draft = Item.draft(
-        col: FirestorePathsService.getPasswordCol(),
+        col: FirestorePathsService.getItemsCol(),
         username: _usernameController.text,
         plainText: _passwordController.text,
       );
@@ -384,7 +384,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                         // Editing a real password → store a new version of the
                         // same purpose; the old one is kept but no longer latest.
                         final newVersion = Item.password(
-                          col: FirestorePathsService.getPasswordCol(),
+                          col: FirestorePathsService.getItemsCol(),
                           website: _websiteController.text,
                           username: _usernameController.text,
                           plainText: _passwordController.text,

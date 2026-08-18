@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/password.dart';
+import '../services/item_service.dart';
 import '../services/password_service.dart';
 
 /// Reactive view over the loaded passwords. [PasswordService] stays the
@@ -49,23 +50,15 @@ class PasswordsNotifier extends Notifier<List<Password>> {
 
   /// Persist a brand-new draft (a generated password, no website yet).
   Future<void> addDraft(Password draft) async {
-    PasswordService.passwords.add(draft);
+    await ItemService.personal.save(draft);
     refresh();
-    await draft.push();
   }
 
   /// Persist edits to a draft; [finalize] promotes it to a real entry and marks
   /// it the latest version of its purpose.
   Future<void> saveDraft(Password draft, {bool finalize = false}) async {
-    if (finalize) {
-      for (final p in PasswordService.passwords
-          .where((e) => e.purposeId == draft.purposeId && e.id != draft.id)) {
-        p.isLatest = false;
-      }
-      draft.isLatest = true;
-    }
+    await ItemService.personal.save(draft);
     refresh();
-    await draft.push();
   }
 
   /// Hide every revealed password (called when the list re-appears / on lock).

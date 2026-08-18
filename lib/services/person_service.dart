@@ -3,6 +3,8 @@ import '../models/person.dart';
 import 'firestore_paths_service.dart';
 
 class PersonService {
+  /// Data layout the app writes. 3 = unified `items` collection.
+  static const int kDataVersion = 3;
 
   static bool _isInited = false;
   static late Person person;

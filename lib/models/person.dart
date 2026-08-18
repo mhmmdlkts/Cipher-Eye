@@ -13,6 +13,9 @@ class Person {
   /// per-password [Password.v], never on this flag.
   int securityVersion = 1;
 
+  /// Data-layout version of this account. 3 = passwords live in /items.
+  int dataVersion = 1;
+
   Person.fromSnapshot(DocumentSnapshot<Object?> snap) {
     if (snap.data() == null) {
       return;
@@ -33,6 +36,9 @@ class Person {
     if (o.containsKey('securityVersion')) {
       securityVersion = (o['securityVersion'] as num).toInt();
     }
+    if (o.containsKey('dataVersion')) {
+      dataVersion = (o['dataVersion'] as num).toInt();
+    }
   }
 
   Map<String, dynamic> toJson({bool withNull = true}) {
@@ -40,6 +46,7 @@ class Person {
       'name': name,
       'usernames': usernames,
       'securityVersion': securityVersion,
+      'dataVersion': dataVersion,
     };
     if (withNull) {
       return map;
