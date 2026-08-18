@@ -4,11 +4,12 @@ import 'package:cipher_eye/screens/item_detail_screen.dart';
 import 'package:cipher_eye/screens/note_editor_screen.dart';
 import 'package:cipher_eye/screens/password_detail_screen.dart';
 import 'package:cipher_eye/screens/settings_screen.dart';
+import 'package:cipher_eye/screens/vaults_screen.dart';
+import 'package:cipher_eye/services/item_service.dart';
 import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
 import 'package:cipher_eye/services/haptics.dart';
 import 'package:cipher_eye/services/history_service.dart';
-import 'package:cipher_eye/services/item_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,7 +18,7 @@ import 'package:kreiseck_branding/kreiseck_branding.dart';
 import '../models/item.dart';
 import '../models/item_type.dart';
 import '../providers/key_provider.dart';
-import '../providers/items_provider.dart';
+import '../providers/vaults_provider.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -131,8 +132,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: Column(
         children: [
           if (!hasKey) _noKeyBanner(),
+          if (ref.watch(vaultsProvider).isNotEmpty) _sourceChips(),
           Expanded(
-            child: passwords.isEmpty
+            child: RefreshIndicator(
+              onRefresh: () => ref.read(vaultsProvider.notifier).refresh(),
+              child: passwords.isEmpty
                 ? _emptyState()
                 : NotificationListener<ScrollNotification>(
                     onNotification: (scrollNotification) {
@@ -145,11 +149,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                     },
                     child: ListView.separated(
                       controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: passwords.length,
                       itemBuilder: (ctx, i) => getSinglePasswordField(passwords[i]),
                       separatorBuilder: (ctx, i) => Divider(thickness: 1, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2), height: 0,),
                     ),
                   ),
+            ),
           ),
         ],
       ),
@@ -159,7 +165,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   List<Item> get passwords {
-    final base = ref.watch(itemsProvider);
+    final base = ref.watch(filteredItemsProvider);
     if (searchVal == null) {
       return base;
     }
@@ -201,6 +207,65 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
 
+
+  Widget _sourceChips() {
+    final vaults = ref.watch(vaultsProvider);
+    final current = ref.watch(sourceFilterProvider);
+    Widget chip(String? value, String label, IconData icon) => Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(
+            avatar: Icon(icon, size: 16),
+            label: Text(label),
+            selected: current == value,
+            onSelected: (_) {
+              Haptics.selection();
+              if (value != null &&
+                  value != kPersonalSource &&
+                  ItemService.isLocked(value)) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text(
+                        'Tresor gesperrt – bitte Encryption-Key prüfen')));
+              }
+              ref.read(sourceFilterProvider.notifier).state = value;
+            },
+          ),
+        );
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          chip(null, 'Alle', Icons.all_inclusive),
+          chip(kPersonalSource, 'Persönlich', Icons.person_outline),
+          for (final v in vaults)
+            chip(
+                v.id,
+                v.name,
+                ItemService.isLocked(v.id)
+                    ? Icons.lock_outline
+                    : Icons.group_outlined),
+        ],
+      ),
+    );
+  }
+
+  Widget _vaultBadge(Item pass, ColorScheme scheme) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: scheme.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.group_outlined, size: 12, color: scheme.primary),
+          const SizedBox(width: 4),
+          Text(ItemService.vaultById(pass.vaultId)?.name ?? 'Tresor',
+              style: TextStyle(
+                  fontSize: 10,
+                  color: scheme.primary,
+                  fontWeight: FontWeight.bold)),
+        ]),
+      );
 
   Widget getSinglePasswordField(Item pass) {
     final scheme = Theme.of(context).colorScheme;
@@ -250,6 +315,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                       fontWeight: FontWeight.bold,
                       color: Colors.orange)),
             ),
+          ],
+          if (pass.vaultId != null) ...[
+            const SizedBox(width: 8),
+            _vaultBadge(pass, scheme),
           ],
         ],
       ),
@@ -372,7 +441,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget _emptyState() {
     final searching = searchVal != null;
     final primary = Theme.of(context).colorScheme.primary;
-    return Center(
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+        Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -388,6 +461,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           ],
         ],
       ),
+        ),
+      ],
     );
   }
 
@@ -432,6 +507,19 @@ class _HomePageState extends ConsumerState<HomePage> {
             padding: EdgeInsets.zero,
             children: [
               ListTile(
+                leading: const Icon(Icons.group_outlined),
+                title: const Text('Tresore'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const VaultsScreen(),
+                      ));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings_outlined),
                 title: const Text('Einstellungen'),
                 onTap: () {
                   Navigator.push(
