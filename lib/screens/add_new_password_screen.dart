@@ -8,7 +8,7 @@ import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/passwords_provider.dart';
+import '../providers/items_provider.dart';
 import '../services/clipboard_service.dart';
 import '../services/haptics.dart';
 import '../widgets/app_text_field.dart';
@@ -78,7 +78,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
       );
       _draft = draft;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(passwordsProvider.notifier).addDraft(draft);
+        ref.read(itemsProvider.notifier).addDraft(draft);
       });
     }
   }
@@ -191,7 +191,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     Haptics.warning();
     // Prevent dispose() from re-persisting the draft we just deleted.
     _saved = true;
-    await ref.read(passwordsProvider.notifier).delete(draft);
+    await ref.read(itemsProvider.notifier).delete(draft);
     navigator.pop();
   }
 
@@ -390,8 +390,8 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                           plainText: _passwordController.text,
                         );
                         await ref
-                            .read(passwordsProvider.notifier)
-                            .update(newVersion);
+                            .read(itemsProvider.notifier)
+                            .updateVersion(newVersion);
                       } else {
                         final draft = _draft!;
                         draft.applyEdits(
@@ -401,7 +401,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                           finalize: true,
                         );
                         await ref
-                            .read(passwordsProvider.notifier)
+                            .read(itemsProvider.notifier)
                             .saveDraft(draft, finalize: true);
                       }
                       _saved = true;

@@ -7,7 +7,7 @@ import 'add_new_password_screen.dart';
 import 'log_detail_screen.dart';
 import '../providers/history_provider.dart';
 import '../providers/key_provider.dart';
-import '../providers/passwords_provider.dart';
+import '../providers/items_provider.dart';
 import '../providers/place_provider.dart';
 import '../services/clipboard_service.dart';
 import '../services/haptics.dart';
@@ -73,7 +73,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     );
     if (ok != true) return;
     Haptics.warning();
-    await ref.read(passwordsProvider.notifier).delete(pass);
+    await ref.read(itemsProvider.notifier).delete(pass);
     navigator.pop();
   }
 

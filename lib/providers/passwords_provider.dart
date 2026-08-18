@@ -1,72 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/password.dart';
-import '../services/item_service.dart';
-import '../services/password_service.dart';
+import '../models/item.dart';
+import '../models/item_type.dart';
+import 'items_provider.dart';
 
-/// Reactive view over the loaded passwords. [PasswordService] stays the
-/// data/crypto/migration layer (loading, encryption, v1→v2 migration); this
-/// notifier exposes the latest-per-purpose list to the UI so add/delete update
-/// the screen automatically — no manual setState, no static list reads in
-/// widgets.
-class PasswordsNotifier extends Notifier<List<Password>> {
-  @override
-  List<Password> build() => _combined();
-
-  /// Drafts first (newest), then the latest real entries sorted by how often
-  /// they're used (copy + view counts, highest first; timestamp as tiebreak).
-  List<Password> _combined() {
-    final drafts = PasswordService.drafts
-      ..sort((a, b) => (b.timestamp?.millisecondsSinceEpoch ?? 0)
-          .compareTo(a.timestamp?.millisecondsSinceEpoch ?? 0));
-    int usage(Password p) => p.copyCount + p.viewCount;
-    final entries = PasswordService.newPasswords
-      ..sort((a, b) {
-        final byUsage = usage(b).compareTo(usage(a));
-        if (byUsage != 0) return byUsage;
-        return (b.timestamp?.millisecondsSinceEpoch ?? 0)
-            .compareTo(a.timestamp?.millisecondsSinceEpoch ?? 0);
-      });
-    return [...drafts, ...entries];
-  }
-
-  void refresh() => state = _combined();
-
-  Future<void> add(Password password) async {
-    await PasswordService.addNewPassword(password);
-    refresh();
-  }
-
-  /// Edit a real password → store it as a new version of the same purpose.
-  Future<void> update(Password newVersion) async {
-    await PasswordService.updatePassword(newVersion);
-    refresh();
-  }
-
-  Future<void> delete(Password password) async {
-    await PasswordService.deletePassword(password);
-    refresh();
-  }
-
-  /// Persist a brand-new draft (a generated password, no website yet).
-  Future<void> addDraft(Password draft) async {
-    await ItemService.personal.save(draft);
-    refresh();
-  }
-
-  /// Persist edits to a draft; [finalize] promotes it to a real entry and marks
-  /// it the latest version of its purpose.
-  Future<void> saveDraft(Password draft, {bool finalize = false}) async {
-    await ItemService.personal.save(draft);
-    refresh();
-  }
-
-  /// Hide every revealed password (called when the list re-appears / on lock).
-  void maskAll() {
-    PasswordService.maskAll();
-    refresh();
-  }
-}
-
-final passwordsProvider =
-    NotifierProvider<PasswordsNotifier, List<Password>>(PasswordsNotifier.new);
+/// Passwords only (drafts included), derived from [itemsProvider].
+final passwordsProvider = Provider<List<Item>>((ref) => ref
+    .watch(itemsProvider)
+    .where((i) => i.type == ItemType.password)
+    .toList());

@@ -1,4 +1,7 @@
 import 'package:cipher_eye/screens/add_new_password_screen.dart';
+import 'package:cipher_eye/screens/card_editor_screen.dart';
+import 'package:cipher_eye/screens/item_detail_screen.dart';
+import 'package:cipher_eye/screens/note_editor_screen.dart';
 import 'package:cipher_eye/screens/password_detail_screen.dart';
 import 'package:cipher_eye/screens/settings_screen.dart';
 import 'package:cipher_eye/services/clipboard_service.dart';
@@ -11,9 +14,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kreiseck_branding/kreiseck_branding.dart';
 
-import '../models/password.dart';
+import '../models/item.dart';
+import '../models/item_type.dart';
 import '../providers/key_provider.dart';
-import '../providers/passwords_provider.dart';
+import '../providers/items_provider.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -154,24 +158,21 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  List<Password> get passwords {
-    final base = ref.watch(passwordsProvider);
+  List<Item> get passwords {
+    final base = ref.watch(itemsProvider);
     if (searchVal == null) {
       return base;
     }
     String specialChars = "+`-*/()&%§!?\$#@^_~|{}[]:;,<>.=";
     List<String> srcValList = searchVal!.split(' ').where((element) => element.isNotEmpty).toList();
-    Map<String, List<Password>> resultMap = {};
+    Map<String, List<Item>> resultMap = {};
     for (String srcVal in srcValList) {
       for (String c in specialChars.characters) {
         srcVal = srcVal.replaceAll(c, "").toUpperCase();
       }
       resultMap[srcVal] = base.where((element) {
-        if (element.website == null || element.username == null) {
-          return true;
-        }
-        String website = element.website!.toUpperCase();
-        String username = element.username!.toUpperCase();
+        String website = (element.title ?? '').toUpperCase();
+        String username = (element.username ?? '').toUpperCase();
         for (String c in specialChars.characters) {
           website = website.replaceAll(c, "");
           username = username.replaceAll(c, "");
@@ -179,12 +180,12 @@ class _HomePageState extends ConsumerState<HomePage> {
         return website.contains(srcVal) || username.contains(srcVal);
       }).toList();
     }
-    List<Password> result = [];
+    List<Item> result = [];
     resultMap.forEach((key, value) {
       if (result.isEmpty) {
         result.addAll(value);
       } else {
-        List<Password> toRemove = [];
+        List<Item> toRemove = [];
         for (var element in result) {
           if (!value.contains(element)) {
             toRemove.add(element);
@@ -201,31 +202,37 @@ class _HomePageState extends ConsumerState<HomePage> {
 
 
 
-  Widget getSinglePasswordField(Password pass) {
+  Widget getSinglePasswordField(Item pass) {
     final scheme = Theme.of(context).colorScheme;
+    final isPassword = pass.type == ItemType.password;
     final value = pass.isVisible ? pass.decrypted() : '••••••••••';
-    final hasName = pass.website?.isNotEmpty ?? false;
+    final hasName = pass.title?.isNotEmpty ?? false;
     return ListTile(
-      isThreeLine: true,
-      // Tap = copy (drafts open their editor instead, since they're unfinished).
-      // Long-press = reveal. The trailing button opens the detail/editor screen.
-      onTap: pass.isDraft ? () => _open(pass) : () => _copyFromList(pass),
-      onLongPress: pass.isDraft ? null : () => _toggleReveal(pass),
+      isThreeLine: isPassword,
+      // Passwords: tap = copy, long-press = reveal, button opens details.
+      // Drafts open their editor; other types open their detail screen.
+      onTap: pass.isDraft || !isPassword
+          ? () => _open(pass)
+          : () => _copyFromList(pass),
+      onLongPress:
+          pass.isDraft || !isPassword ? null : () => _toggleReveal(pass),
       leading: CircleAvatar(
         backgroundColor: scheme.primary.withValues(alpha: 0.12),
         child: pass.isDraft
             ? Icon(Icons.edit_note, color: scheme.primary)
-            : Text(
-                hasName ? pass.website![0].toUpperCase() : '?',
-                style: TextStyle(
-                    color: scheme.primary, fontWeight: FontWeight.bold),
-              ),
+            : !isPassword
+                ? Icon(pass.type.icon, color: scheme.primary)
+                : Text(
+                    hasName ? pass.title![0].toUpperCase() : '?',
+                    style: TextStyle(
+                        color: scheme.primary, fontWeight: FontWeight.bold),
+                  ),
       ),
       title: Row(
         children: [
           Flexible(
             child: Text(
-              hasName ? pass.website! : 'Unbenannter Entwurf',
+              hasName ? pass.title! : 'Unbenannter Entwurf',
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -246,15 +253,19 @@ class _HomePageState extends ConsumerState<HomePage> {
           ],
         ],
       ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if ((pass.username ?? '').isNotEmpty)
-            Text(pass.username!,
-                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
-          Text(value, style: const TextStyle(letterSpacing: 1.5)),
-        ],
-      ),
+      subtitle: isPassword
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if ((pass.username ?? '').isNotEmpty)
+                  Text(pass.username!,
+                      style: TextStyle(
+                          color: scheme.onSurfaceVariant, fontSize: 12)),
+                Text(value, style: const TextStyle(letterSpacing: 1.5)),
+              ],
+            )
+          : Text(pass.type.label,
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
       trailing: IconButton(
         visualDensity: VisualDensity.compact,
         tooltip: pass.isDraft ? 'Entwurf bearbeiten' : 'Details öffnen',
@@ -266,16 +277,18 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  void _open(Password pass) => Navigator.push(
+  void _open(Item pass) => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => pass.isDraft
               ? AddNewPasswordScreen(draft: pass)
-              : PasswordDetailScreen(pass),
+              : pass.type == ItemType.password
+                  ? PasswordDetailScreen(pass)
+                  : ItemDetailScreen(pass),
         ),
       );
 
-  void _toggleReveal(Password pass) {
+  void _toggleReveal(Item pass) {
     if (!pass.isVisible && !_hasKey) {
       _warnNoKey();
       return;
@@ -289,7 +302,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
-  Future<void> _copyFromList(Password pass) async {
+  Future<void> _copyFromList(Item pass) async {
     if (!_hasKey) {
       _warnNoKey();
       return;
@@ -306,20 +319,55 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _createNewFab() => FloatingActionButton(
     backgroundColor: Theme.of(context).colorScheme.primary,
-    child: Icon(Icons.add),
-    onPressed: () async {
+    tooltip: 'Neu',
+    child: const Icon(Icons.add),
+    onPressed: () {
       if (!_hasKey) {
         _warnNoKey();
         return;
       }
-      await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddNewPasswordScreen(),
-          )
-      );
+      _showTypeChooser();
     },
   );
+
+  Future<void> _showTypeChooser() async {
+    final type = await showModalBottomSheet<ItemType>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('Was möchtest du speichern?',
+                  style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            for (final t in ItemType.values)
+              ListTile(
+                leading: Icon(t.icon),
+                title: Text(t.label),
+                subtitle: _typeAvailable(t) ? null : const Text('Bald verfügbar'),
+                enabled: _typeAvailable(t),
+                onTap: () => Navigator.pop(ctx, t),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (type == null || !mounted) return;
+    Haptics.selection();
+    final Widget screen = switch (type) {
+      ItemType.password => const AddNewPasswordScreen(),
+      ItemType.card => const CardEditorScreen(),
+      ItemType.note => const NoteEditorScreen(),
+      _ => const AddNewPasswordScreen(),
+    };
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  static bool _typeAvailable(ItemType t) =>
+      t == ItemType.password || t == ItemType.card || t == ItemType.note;
 
   Widget _emptyState() {
     final searching = searchVal != null;
@@ -331,7 +379,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           Icon(searching ? Icons.search_off : Icons.lock_outline,
               size: 64, color: primary.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
-          Text(searching ? 'Keine Treffer' : 'Noch keine Passwörter',
+          Text(searching ? 'Keine Treffer' : 'Noch keine Einträge',
               style: Theme.of(context).textTheme.titleMedium),
           if (!searching) ...[
             const SizedBox(height: 8),
