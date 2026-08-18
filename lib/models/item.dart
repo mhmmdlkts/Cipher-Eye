@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import '../services/crypto_service.dart';
 import '../services/history_service.dart';
 import '../services/keys.dart';
+import 'attachment.dart';
 import 'item_type.dart';
 
 /// One stored entry: password, card, note, document or file. Sensitive data is
@@ -29,7 +30,7 @@ class Item implements Comparable<Item> {
   bool isDraft = false;
   bool isLatest = false;
   bool isVisible = false;
-  List<Map<String, dynamic>> attachments = [];
+  List<Attachment> attachments = [];
 
   /// The Firestore document this item lives in (set on load / creation).
   DocumentReference? ref;
@@ -174,7 +175,7 @@ class Item implements Comparable<Item> {
     if (o['attachments'] is List) {
       attachments = (o['attachments'] as List)
           .whereType<Map>()
-          .map((m) => Map<String, dynamic>.from(m))
+          .map((m) => Attachment.fromJson(Map<String, dynamic>.from(m)))
           .toList();
     }
   }
@@ -194,7 +195,7 @@ class Item implements Comparable<Item> {
       'isDraft': isDraft,
       'copyCount': copyCount,
       'viewCount': viewCount,
-      if (attachments.isNotEmpty) 'attachments': attachments,
+      'attachments': [for (final a in attachments) a.toJson()],
     };
     if (withNull) return map;
     return {
@@ -202,6 +203,12 @@ class Item implements Comparable<Item> {
         if (e.value != null) e.key: e.value
     };
   }
+
+  bool get hasAttachments => attachments.isNotEmpty;
+
+  /// Attachments in display order.
+  List<Attachment> get pages =>
+      List.of(attachments)..sort((a, b) => a.order.compareTo(b.order));
 
   Future<void> push() => ref!.set(toJson(), SetOptions(merge: true));
   Future<void> update() => ref!.update(toJson(withNull: false));
