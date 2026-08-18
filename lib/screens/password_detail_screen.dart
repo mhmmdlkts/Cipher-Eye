@@ -13,6 +13,7 @@ import '../services/clipboard_service.dart';
 import '../services/haptics.dart';
 import '../services/history_service.dart';
 import '../services/password_service.dart';
+import '../widgets/copy_row.dart';
 
 class PasswordDetailScreen extends ConsumerStatefulWidget {
   const PasswordDetailScreen(this.password, {super.key});
@@ -249,16 +250,14 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
             ),
             const SizedBox(height: 20),
             if ((pass.username ?? '').isNotEmpty) ...[
-              _copyRow(
-                scheme,
+              CopyRow(
                 label: 'Benutzername',
                 value: pass.username!,
                 onTap: _copyUsername,
               ),
               const SizedBox(height: 10),
             ],
-            _copyRow(
-              scheme,
+            CopyRow(
               label: 'Passwort',
               value: _revealed ? pass.decrypted() : List.filled(16, '•').join(),
               mono: true,
@@ -276,51 +275,6 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
                 style: TextStyle(
                     fontSize: 12, color: scheme.onSurfaceVariant)),
           ],
-        ),
-      ),
-    );
-  }
-
-  /// A sensitive value: tap copies it, long-press optionally reveals it.
-  Widget _copyRow(
-    ColorScheme scheme, {
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-    VoidCallback? onLongPress,
-    Widget? trailing,
-    bool mono = false,
-  }) {
-    return Material(
-      color: scheme.surface,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: EdgeInsets.only(
-              left: 16, right: trailing == null ? 16 : 4, top: 10, bottom: 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label,
-                        style: TextStyle(
-                            fontSize: 11, color: scheme.onSurfaceVariant)),
-                    const SizedBox(height: 2),
-                    Text(value,
-                        style: TextStyle(
-                            fontSize: 16, letterSpacing: mono ? 1.2 : 0)),
-                  ],
-                ),
-              ),
-              trailing ?? Icon(Icons.content_copy,
-                  size: 18, color: scheme.onSurfaceVariant),
-            ],
-          ),
         ),
       ),
     );
