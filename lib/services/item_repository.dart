@@ -4,12 +4,30 @@ import '../models/item.dart';
 import '../models/item_type.dart';
 import 'history_service.dart';
 
+/// Receives (action, itemId) for create/update/delete so the repository does
+/// not depend on where history is written (personal history today, vault
+/// history later).
+typedef HistoryLogger = void Function(String action, String itemId);
+
+void _defaultHistory(String action, String itemId) {
+  switch (action) {
+    case 'create':
+      HistoryService.saveCreateHistory(itemId);
+    case 'update':
+      HistoryService.saveUpdateHistory(itemId);
+    case 'delete':
+      HistoryService.saveDeleteHistory(itemId);
+  }
+}
+
 /// All items of one collection (the personal `items` collection today; one
 /// per vault later). Owns loading, version bookkeeping and persistence.
 class ItemRepository {
-  ItemRepository(this.col);
+  ItemRepository(this.col, {HistoryLogger? history})
+      : _history = history ?? _defaultHistory;
 
   final CollectionReference col;
+  final HistoryLogger _history;
   final List<Item> items = [];
 
   /// Loads [col] plus any [extraSources] (legacy collections). Items keep the
@@ -70,7 +88,7 @@ class ItemRepository {
   Future<void> add(Item item) async {
     items.add(item);
     _recomputeLatest();
-    if (!item.isDraft) HistoryService.saveCreateHistory(item.id!);
+    if (!item.isDraft) _history('create', item.id!);
     await item.push();
   }
 
@@ -79,7 +97,7 @@ class ItemRepository {
   Future<void> updateVersion(Item item) async {
     items.add(item);
     _recomputeLatest();
-    HistoryService.saveUpdateHistory(item.id!);
+    _history('update', item.id!);
     await item.push();
   }
 
@@ -93,7 +111,7 @@ class ItemRepository {
   /// Deletes a draft by itself, a password with all its versions, anything
   /// else by itself.
   Future<void> delete(Item item) async {
-    HistoryService.saveDeleteHistory(item.id!);
+    _history('delete', item.id!);
     final victims = (item.type == ItemType.password && !item.isDraft)
         ? items
             .where((i) =>

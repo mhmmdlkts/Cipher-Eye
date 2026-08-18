@@ -12,7 +12,8 @@ void main() {
   setUp(() {
     SecureStorageService.key = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ012345';
     db = FakeFirebaseFirestore();
-    repo = ItemRepository(db.collection('users').doc('u1').collection('items'));
+    repo = ItemRepository(db.collection('users').doc('u1').collection('items'),
+        history: (_, __) {});
   });
 
   test('add + load marks the newest version per purpose as latest', () async {
@@ -20,7 +21,7 @@ void main() {
     await repo.add(a);
     final b = Item.password(col: repo.col, website: 'w', username: 'u', plainText: '2');
     await repo.updateVersion(b);
-    final fresh = ItemRepository(repo.col);
+    final fresh = ItemRepository(repo.col, history: (_, __) {});
     await fresh.load();
     expect(fresh.items.length, 2);
     expect(fresh.latest.map((i) => i.id), [b.id]);
@@ -33,7 +34,7 @@ void main() {
     await repo.add(n);
     n.setPayload(title: 'N2', plainJson: const NoteData(text: 'b').encode());
     await repo.save(n);
-    final fresh = ItemRepository(repo.col);
+    final fresh = ItemRepository(repo.col, history: (_, __) {});
     await fresh.load();
     expect(fresh.latest.single.title, 'N2');
     expect(NoteData.decode(fresh.latest.single.decrypted()).text, 'b');
