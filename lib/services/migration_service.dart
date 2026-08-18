@@ -1,4 +1,5 @@
 import 'package:cipher_eye/services/firestore_paths_service.dart';
+import 'package:cipher_eye/services/item_service.dart';
 import 'package:cipher_eye/services/password_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:cipher_eye/services/secure_storage_service.dart';
@@ -12,7 +13,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class MigrationService {
   /// Number of stored entries still on a legacy crypto version.
   static int get pendingCount =>
-      PasswordService.passwords.where((p) => p.needsMigration).length;
+      ItemService.items.where((p) => p.needsMigration).length;
 
   /// True when there is anything to bring up to the current version — either
   /// legacy entries, or a profile flag that hasn't caught up yet.
@@ -30,7 +31,7 @@ class MigrationService {
   static Future<void> migrateAll(
       {void Function(int done, int total)? onProgress}) async {
     final pending =
-        PasswordService.passwords.where((p) => p.needsMigration).toList();
+        ItemService.items.where((p) => p.needsMigration).toList();
     final total = pending.length;
     int done = 0;
     onProgress?.call(done, total);
@@ -49,7 +50,7 @@ class MigrationService {
   /// not fail the whole migration — the password data is already safely
   /// re-encrypted. It is simply retried on the next launch.
   static Future<void> _bumpProfileVersion() async {
-    if (!PasswordService.passwords.every((p) => !p.needsMigration) ||
+    if (!ItemService.items.every((p) => !p.needsMigration) ||
         PersonService.person.securityVersion >= PasswordService.kCryptoVersion) {
       return;
     }

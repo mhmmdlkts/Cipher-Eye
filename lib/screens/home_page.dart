@@ -8,7 +8,7 @@ import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
 import 'package:cipher_eye/services/haptics.dart';
 import 'package:cipher_eye/services/history_service.dart';
-import 'package:cipher_eye/services/password_service.dart';
+import 'package:cipher_eye/services/item_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,7 +38,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     // Reset any previously revealed password when the list (re)appears.
-    PasswordService.maskAll();
+    ItemService.maskAll();
   }
 
   @override
@@ -298,7 +298,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     setState(() => pass.isVisible = !pass.isVisible);
     if (revealing) {
       HistoryService.saveViewHistory(pass.id!);
-      PasswordService.incrementUsage(pass.id!, copy: false);
+      ItemService.incrementUsage(pass.id!, copy: false);
     }
   }
 
@@ -310,7 +310,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final messenger = ScaffoldMessenger.of(context);
     await ClipboardService.copySensitive(pass.decrypted());
     HistoryService.saveCopyHistory(pass.id!);
-    PasswordService.incrementUsage(pass.id!, copy: true);
+    ItemService.incrementUsage(pass.id!, copy: true);
     messenger.showSnackBar(const SnackBar(
       content: Text('Kopiert – wird in 30 s aus der Zwischenablage gelöscht'),
       duration: Duration(seconds: 2),

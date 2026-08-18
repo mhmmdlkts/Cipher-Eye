@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cipher_eye/models/item.dart';
-import 'package:cipher_eye/models/password.dart';
 import 'package:cipher_eye/services/firestore_paths_service.dart';
 import 'package:cipher_eye/services/password_generator.dart';
 import 'package:cipher_eye/services/person_service.dart';
@@ -17,11 +16,11 @@ class AddNewPasswordScreen extends ConsumerStatefulWidget {
   const AddNewPasswordScreen({super.key, this.draft, this.editVersion});
 
   /// When set, this draft is being finished/edited instead of created anew.
-  final Password? draft;
+  final Item? draft;
 
   /// When set, an existing real password is being edited; saving stores a new
   /// version of the same purpose (the old one is kept but no longer latest).
-  final Password? editVersion;
+  final Item? editVersion;
 
   @override
   ConsumerState<AddNewPasswordScreen> createState() =>
@@ -42,7 +41,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
   int passwordLength = 24;
   bool _copied = false;
   bool _saved = false;
-  Password? _draft;
+  Item? _draft;
   Timer? _clearTimer;
   int _clearSeconds = 0;
 

@@ -10,7 +10,7 @@ class Person {
   /// Aggregate crypto/security version of this profile. Only bumped to the
   /// current version once every password entry has been migrated. Used as a
   /// fast "all migrated" check on launch — decryption always relies on the
-  /// per-password [Password.v], never on this flag.
+  /// per-item [Item.v], never on this flag.
   int securityVersion = 1;
 
   /// Data-layout version of this account. 3 = passwords live in /items.

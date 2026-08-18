@@ -1,27 +1,10 @@
 import 'package:cipher_eye/services/crypto_service.dart';
-import 'package:cipher_eye/services/item_service.dart';
 import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:encrypt/encrypt.dart';
 
-import '../models/item.dart';
-import '../models/item_type.dart';
-
+/// Master-key crypto for personal items: builds the AES key from secure
+/// storage on demand and delegates to [CryptoService].
 class PasswordService {
-  static List<Item> get passwords => ItemService.items;
-  static List<Item> get newPasswords =>
-      ItemService.latest.where((i) => i.type == ItemType.password).toList();
-  static List<Item> get drafts => ItemService.drafts;
-  static List<Item> versionsOf(String purposeId) =>
-      ItemService.versionsOf(purposeId);
-  static void maskAll() => ItemService.maskAll();
-  static Future<void> incrementUsage(String passwordId,
-          {required bool copy}) =>
-      ItemService.incrementUsage(passwordId, copy: copy);
-  static Future<void> init() => ItemService.init();
-  static Future addNewPassword(Item p) => ItemService.personal.add(p);
-  static Future updatePassword(Item p) => ItemService.personal.updateVersion(p);
-  static Future deletePassword(Item p) => ItemService.personal.delete(p);
-
   /// Current crypto/security version (see [CryptoService]). Entries below
   /// this need migration.
   static const int kCryptoVersion = CryptoService.kVersion;

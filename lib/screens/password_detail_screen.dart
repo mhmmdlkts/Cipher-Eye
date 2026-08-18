@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/history.dart';
-import '../models/password.dart';
+import '../models/item.dart';
 import 'add_new_password_screen.dart';
 import 'log_detail_screen.dart';
 import '../providers/history_provider.dart';
@@ -12,13 +12,13 @@ import '../providers/place_provider.dart';
 import '../services/clipboard_service.dart';
 import '../services/haptics.dart';
 import '../services/history_service.dart';
-import '../services/password_service.dart';
+import '../services/item_service.dart';
 import '../widgets/copy_row.dart';
 
 class PasswordDetailScreen extends ConsumerStatefulWidget {
   const PasswordDetailScreen(this.password, {super.key});
 
-  final Password password;
+  final Item password;
 
   @override
   ConsumerState<PasswordDetailScreen> createState() =>
@@ -29,7 +29,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
   bool _revealed = false;
   final Set<String> _revealedVersions = {};
 
-  Password get pass => widget.password;
+  Item get pass => widget.password;
 
   Future<void> _edit() async {
     if (!ref.read(hasKeyProvider)) {
@@ -109,7 +109,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
       duration: Duration(seconds: 2),
     ));
     // Log this copy (with location) + count it, then refresh the history.
-    PasswordService.incrementUsage(pass.id!, copy: true);
+    ItemService.incrementUsage(pass.id!, copy: true);
     HistoryService.saveCopyHistory(pass.id!).whenComplete(() {
       if (mounted) ref.invalidate(passwordHistoryProvider(pass.id!));
     });
@@ -124,7 +124,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     Haptics.selection();
     setState(() => _revealed = !_revealed);
     if (revealing) {
-      PasswordService.incrementUsage(pass.id!, copy: false);
+      ItemService.incrementUsage(pass.id!, copy: false);
       HistoryService.saveViewHistory(pass.id!).whenComplete(() {
         if (mounted) ref.invalidate(passwordHistoryProvider(pass.id!));
       });
@@ -300,7 +300,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
   }
 
   Widget _previousVersions(ColorScheme scheme) {
-    final older = PasswordService.versionsOf(pass.purposeId ?? '')
+    final older = ItemService.versionsOf(pass.purposeId ?? '')
         .where((p) => p.id != pass.id)
         .toList();
     if (older.isEmpty) return const SizedBox.shrink();
@@ -322,7 +322,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     );
   }
 
-  Widget _versionTile(Password p, ColorScheme scheme) {
+  Widget _versionTile(Item p, ColorScheme scheme) {
     final shown = _revealedVersions.contains(p.id);
     final dt = p.timestamp?.toDate();
     String value;
