@@ -9,6 +9,7 @@ import '../providers/key_provider.dart';
 import '../services/haptics.dart';
 import '../services/item_service.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/date_field.dart';
 import '../widgets/pages_editor.dart';
 import '../widgets/source_picker.dart';
 
@@ -169,18 +170,18 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
           const SizedBox(height: 12),
           Row(children: [
             Expanded(
-                child: AppTextField(
+                child: DateField(
                     controller: _issued,
                     label: 'Ausgestellt',
-                    hint: 'TT.MM.JJJJ',
-                    prefixIcon: Icons.event_available_outlined)),
+                    prefixIcon: Icons.event_available_outlined,
+                    enabled: !_saving)),
             const SizedBox(width: 12),
             Expanded(
-                child: AppTextField(
+                child: DateField(
                     controller: _expires,
                     label: 'Gültig bis',
-                    hint: 'TT.MM.JJJJ',
-                    prefixIcon: Icons.event_busy_outlined)),
+                    prefixIcon: Icons.event_busy_outlined,
+                    enabled: !_saving)),
           ]),
           const SizedBox(height: 12),
           AppTextField(

@@ -10,7 +10,9 @@ import '../providers/key_provider.dart';
 import '../services/card_number_formatter.dart';
 import '../services/haptics.dart';
 import '../services/item_service.dart';
+import '../services/card_ocr.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/date_field.dart';
 import '../widgets/pages_editor.dart';
 import '../widgets/source_picker.dart';
 
@@ -59,8 +61,40 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
     }
   }
 
+  int _knownPages = 0;
+
   void _onPages() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    // A freshly added page → try to read the card data off it.
+    if (_pages.pages.length > _knownPages) {
+      final newest = _pages.pages.last;
+      if (newest.dirty && newest.bytes != null) _prefillFromScan(newest.bytes!);
+    }
+    _knownPages = _pages.pages.length;
+  }
+
+  Future<void> _prefillFromScan(Uint8List jpeg) async {
+    if (!CardOcr.available) return;
+    final r = await CardOcr.scan(jpeg);
+    if (!mounted || r.isEmpty) return;
+    var filled = 0;
+    void put(TextEditingController c, String? v) {
+      if (v != null && c.text.trim().isEmpty) {
+        c.text = v;
+        filled++;
+      }
+    }
+    put(_number, r.number);
+    put(_expiry, r.expiry);
+    put(_holder, r.holder);
+    put(_iban, r.iban);
+    if (filled == 0) return;
+    setState(() {});
+    Haptics.selection();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Kartendaten erkannt ($filled Feld${filled == 1 ? '' : 'er'} vorausgefüllt – bitte prüfen)'),
+        duration: const Duration(seconds: 3)));
   }
 
   @override
@@ -169,12 +203,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
           const SizedBox(height: 12),
           Row(children: [
             Expanded(
-                child: AppTextField(
-                    controller: _expiry,
-                    label: 'Gültig bis',
-                    hint: 'MM/JJ',
-                    prefixIcon: Icons.event,
-                    keyboardType: TextInputType.datetime)),
+                child: MonthYearField(
+                    controller: _expiry, enabled: !_saving)),
             const SizedBox(width: 12),
             Expanded(
                 child: AppTextField(
