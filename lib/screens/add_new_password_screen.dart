@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:cipher_eye/models/item.dart';
 import 'package:cipher_eye/models/password.dart';
+import 'package:cipher_eye/services/firestore_paths_service.dart';
 import 'package:cipher_eye/services/password_generator.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
@@ -69,9 +71,10 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     } else {
       _usernameController.text = usernames.isNotEmpty ? usernames.first : '';
       _generate(rebuild: false);
-      final draft = Password.createDraft(
+      final draft = Item.draft(
+        col: FirestorePathsService.getPasswordCol(),
         username: _usernameController.text,
-        plaintText: _passwordController.text,
+        plainText: _passwordController.text,
       );
       _draft = draft;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -90,7 +93,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
         draft.applyEdits(
           website: _websiteController.text,
           username: _usernameController.text,
-          plaintText: _passwordController.text,
+          plainText: _passwordController.text,
         );
         draft.push();
       } catch (_) {}
@@ -380,10 +383,11 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                       if (_isEditVersion) {
                         // Editing a real password → store a new version of the
                         // same purpose; the old one is kept but no longer latest.
-                        final newVersion = Password.create(
+                        final newVersion = Item.password(
+                          col: FirestorePathsService.getPasswordCol(),
                           website: _websiteController.text,
                           username: _usernameController.text,
-                          plaintText: _passwordController.text,
+                          plainText: _passwordController.text,
                         );
                         await ref
                             .read(passwordsProvider.notifier)
@@ -393,7 +397,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                         draft.applyEdits(
                           website: _websiteController.text,
                           username: _usernameController.text,
-                          plaintText: _passwordController.text,
+                          plainText: _passwordController.text,
                           finalize: true,
                         );
                         await ref
