@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../popup/pin_entry_popup.dart';
 import '../providers/key_provider.dart';
+import '../providers/vaults_provider.dart';
 import '../services/app_auth_service.dart';
 import '../services/secure_storage_service.dart';
 import '../widgets/app_text_field.dart';
@@ -63,6 +64,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (key.length != 32) return;
     setState(() => isLoading = true);
     await ref.read(keyProvider.notifier).setKey(key);
+    // Vault keys are wrapped with the master key → unlock/reload them now.
+    await ref.read(vaultsProvider.notifier).refresh();
     if (!mounted) return;
     Haptics.success();
     _keyController.clear();
@@ -187,6 +190,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 if (shouldDelete == true) {
                   Haptics.warning();
                   await ref.read(keyProvider.notifier).removeKey();
+                  await ref.read(vaultsProvider.notifier).refresh();
                 }
               },
               icon: const Icon(Icons.delete, color: Colors.red),
