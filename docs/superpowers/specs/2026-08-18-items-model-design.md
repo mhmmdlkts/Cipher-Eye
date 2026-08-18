@@ -88,8 +88,10 @@ diesem Blob; im Klartext bleiben nur `title` und Metadaten.
 
 ## Migration `passwords` → `items`
 
-- Client-seitig, einmalig, im bestehenden `MigrationService`-Muster, läuft
-  nach dem Entsperren mit Fortschrittsdialog.
+- Client-seitig, einmalig, im bestehenden `MigrationService`-Muster. Da kein
+  Ent-/Verschlüsseln nötig ist (Blobs werden 1:1 kopiert), läuft sie still
+  beim Laden der Items – ohne Dialog; schlägt sie fehl, liest die App
+  weiterhin beide Collections und versucht es beim nächsten Start erneut.
 - Reihenfolge (zwingend): 1) `firestore.rules` mit `items` deployen,
   2) App-Release. Die Rules erlauben während der Übergangszeit weiterhin
   Lesen/Löschen von `passwords`.
