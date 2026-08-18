@@ -33,25 +33,32 @@ class ItemsNotifier extends Notifier<List<Item>> {
   }
 
   Future<void> add(Item item) async {
-    await ItemService.personal.add(item);
+    await ItemService.repoFor(item.vaultId).add(item);
     refresh();
   }
 
   /// Password edit → stored as a new version of the same purpose.
   Future<void> updateVersion(Item item) async {
-    await ItemService.personal.updateVersion(item);
+    await ItemService.repoFor(item.vaultId).updateVersion(item);
     refresh();
   }
 
   /// In-place save (drafts, cards, notes, …).
   Future<void> save(Item item) async {
-    await ItemService.personal.save(item);
+    await ItemService.repoFor(item.vaultId).save(item);
     refresh();
   }
 
   Future<void> delete(Item item) async {
-    await ItemService.personal.delete(item);
+    await ItemService.repoFor(item.vaultId).delete(item);
     refresh();
+  }
+
+  /// Re-encrypts and moves an item to another source (null = personal).
+  Future<Item> move(Item item, String? toVaultId) async {
+    final moved = await ItemService.move(item, toVaultId);
+    refresh();
+    return moved;
   }
 
   Future<void> addDraft(Item draft) => save(draft);
