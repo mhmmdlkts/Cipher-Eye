@@ -26,7 +26,12 @@ class AttachmentService {
   final FirebaseFirestore? _db;
   final String? _uid;
 
-  FirebaseStorage get storage => _storage ?? FirebaseStorage.instance;
+  /// The project's default bucket, named explicitly so a stale generated
+  /// config (pointing at a bucket that does not exist) cannot break uploads.
+  static const String bucket = 'gs://cipher-eye.appspot.com';
+
+  FirebaseStorage get storage =>
+      _storage ?? FirebaseStorage.instanceFor(bucket: bucket);
   FirebaseFirestore get db => _db ?? FirebaseFirestore.instance;
   String get uid => _uid ?? FirebaseAuth.instance.currentUser!.uid;
 
