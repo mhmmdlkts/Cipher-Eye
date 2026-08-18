@@ -75,13 +75,12 @@ class Item implements Comparable<Item> {
   Item.payload({
     required CollectionReference col,
     required this.type,
-    required String title,
+    required this.title,
     required String plainJson,
     this.isFavorite = false,
   }) {
     ref = col.doc();
     id = ref!.id;
-    this.title = title;
     _encrypt(plainJson);
     timestamp = Timestamp.now();
   }
