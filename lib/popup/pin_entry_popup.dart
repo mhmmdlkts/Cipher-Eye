@@ -2,97 +2,157 @@ import 'package:cipher_eye/services/haptics.dart';
 import 'package:cipher_eye/services/secure_storage_service.dart';
 import 'package:flutter/material.dart';
 
+/// PIN dialog. In [PinMode.verify] it checks against the stored PIN and pops
+/// `true`/`false` (false after 3 failed tries). In [PinMode.setup] it asks for
+/// the PIN twice, stores it and pops `true` (or `null` when cancelled).
+enum PinMode { verify, setup }
+
 class PinEntryPopup extends StatefulWidget {
-  const PinEntryPopup({super.key});
+  const PinEntryPopup({super.key, this.mode = PinMode.verify});
+
+  final PinMode mode;
+
   @override
   State<PinEntryPopup> createState() => _PinEntryPopupState();
 }
 
 class _PinEntryPopupState extends State<PinEntryPopup> {
+  static const int pinLength = 6;
   String enteredPin = '';
-  final int pinLength = 6;
+  String? _firstEntry;
   int tryRemains = 3;
+  String? _hint;
+
+  bool get _isSetup => widget.mode == PinMode.setup;
+
+  String get _title {
+    if (!_isSetup) return 'PIN eingeben';
+    return _firstEntry == null ? 'Neue PIN festlegen' : 'PIN wiederholen';
+  }
 
   @override
   Widget build(BuildContext context) {
     final double width =
         (MediaQuery.of(context).size.width - 80).clamp(220.0, 360.0);
     return AlertDialog(
+      title: Text(_title, textAlign: TextAlign.center),
       content: Padding(
-        padding: EdgeInsets.symmetric(vertical: 25, horizontal: 5),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
         child: SizedBox(
-          height: 300,
+          height: 320,
           width: width,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: _buildCircles(),
+              Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: _buildCircles(),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 18,
+                    child: Text(
+                      _hint ?? '',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 13),
+                    ),
+                  ),
+                ],
               ),
-              NumericKeyboard(width: width, onNumberSelected: (value) {
-                if (value == -1) {
-                  if (enteredPin.isNotEmpty) {
-                    setState(() {
-                      enteredPin = enteredPin.substring(0, enteredPin.length - 1);
-                    });
-                  }
-                } else {
-                  if (enteredPin.length < pinLength) {
-                    setState(() {
-                      enteredPin = enteredPin + value.toString();
-                    });
-                  }
-                }
-                if (enteredPin.length == pinLength) {
-                  checkPin();
-                }
-              }),
+              NumericKeyboard(width: width, onNumberSelected: _onKey),
             ],
           ),
         ),
       ),
+      actions: _isSetup
+          ? [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(null),
+                child: const Text('Abbrechen'),
+              ),
+            ]
+          : null,
     );
   }
 
-  Future<void> checkPin() async {
-    final ok = await SecureStorageService.checkPin(enteredPin);
-    if (!mounted) return;
-    if (ok) {
-      Haptics.success();
-      Navigator.of(context).pop(true);
-    } else {
-      Haptics.warning();
-      clear();
-      tryRemains--;
-      if (tryRemains <= 0) {
-        Navigator.of(context).pop(false);
+  void _onKey(int value) {
+    if (value == -1) {
+      if (enteredPin.isNotEmpty) {
+        setState(() {
+          enteredPin = enteredPin.substring(0, enteredPin.length - 1);
+        });
       }
+      return;
+    }
+    if (enteredPin.length >= pinLength) return;
+    setState(() {
+      enteredPin = enteredPin + value.toString();
+      _hint = null;
+    });
+    if (enteredPin.length == pinLength) {
+      _isSetup ? _handleSetup() : _handleVerify();
     }
   }
 
-  void clear() {
+  void _handleVerify() {
+    if (SecureStorageService.checkPin(enteredPin)) {
+      Haptics.success();
+      Navigator.of(context).pop(true);
+      return;
+    }
+    Haptics.warning();
+    tryRemains--;
+    if (tryRemains <= 0) {
+      Navigator.of(context).pop(false);
+      return;
+    }
     setState(() {
       enteredPin = '';
+      _hint = 'Falsche PIN – noch $tryRemains Versuch${tryRemains == 1 ? '' : 'e'}';
     });
   }
 
-  List<Widget> _buildCircles() {
-    List<Widget> circles = [];
-    for (int i = 0; i < pinLength; i++) {
-      circles.add(
-        Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: i < enteredPin.length ? Color(0xff3f826a) : Colors.transparent,
-            shape: BoxShape.circle,
-            border: Border.all(color: Color(0xff3f826a)),
-          ),
-        ),
-      );
+  Future<void> _handleSetup() async {
+    if (_firstEntry == null) {
+      Haptics.selection();
+      setState(() {
+        _firstEntry = enteredPin;
+        enteredPin = '';
+      });
+      return;
     }
-    return circles;
+    if (_firstEntry != enteredPin) {
+      Haptics.warning();
+      setState(() {
+        _firstEntry = null;
+        enteredPin = '';
+        _hint = 'PINs stimmen nicht überein – bitte neu festlegen';
+      });
+      return;
+    }
+    await SecureStorageService.setPin(enteredPin);
+    if (!mounted) return;
+    Haptics.success();
+    Navigator.of(context).pop(true);
+  }
+
+  List<Widget> _buildCircles() {
+    const color = Color(0xff3f826a);
+    return List.generate(
+      pinLength,
+      (i) => Container(
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          color: i < enteredPin.length ? color : Colors.transparent,
+          shape: BoxShape.circle,
+          border: Border.all(color: color),
+        ),
+      ),
+    );
   }
 }
 
@@ -133,4 +193,3 @@ class NumericKeyboard extends StatelessWidget {
     );
   }
 }
-

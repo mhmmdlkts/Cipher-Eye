@@ -2,10 +2,10 @@ import 'package:cipher_eye/screens/splash_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:kreiseck_branding/kreiseck_branding.dart';
-import 'package:local_auth/local_auth.dart';
 
-import '../popup/pin_entry_popup.dart';
+import '../services/app_auth_service.dart';
 import '../services/haptics.dart';
+import '../services/secure_storage_service.dart';
 import '../services/init_service.dart';
 import '../services/migration_service.dart';
 import 'home_page.dart';
@@ -18,8 +18,6 @@ class FirstScreen extends StatefulWidget {
 }
 
 class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
-  final LocalAuthentication _localAuth = LocalAuthentication();
-
   /// The app re-locks only after being in the background for at least this long.
   /// Returning sooner — or staying in the foreground — never re-prompts.
   static const Duration _graceDuration = Duration(minutes: 3);
@@ -30,7 +28,7 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
   bool _migrationChecked = false;
   bool _loaded = false;
   DateTime? _leftForegroundAt;
-  final GlobalKey<State> _dialogKey = GlobalKey<State>();
+  bool _pinOfferChecked = false;
 
   @override
   void initState() {
@@ -89,54 +87,49 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
     }
   }
 
+  static const String _unlockReason =
+      'Bitte authentifiziere dich, um Cipher Eye zu entsperren';
+
+  /// Device auth (Face ID / Touch ID / passcode), with the app-PIN as fallback
+  /// when the device prompt is unavailable or never answers. [_authInProgress]
+  /// is real state so the lock screen reflects it, and it is always reset —
+  /// a hanging prompt can no longer leave the unlock button dead.
   Future<void> _authenticate() async {
-    if (_unlocked || _authInProgress) {
+    if (_unlocked || _authInProgress || !mounted) {
       return;
     }
-    _authInProgress = true;
+    setState(() => _authInProgress = true);
     try {
-      final ok = kIsWeb ? await _authWeb() : await _authNative();
-      if (ok && mounted) {
-        Haptics.success();
-        setState(() {
-          _unlocked = true;
-          _obscured = false;
-        });
-        _runPostUnlockTasks();
-      }
+      final ok = await AppAuthService.authenticate(context, reason: _unlockReason);
+      if (ok) _onUnlocked();
     } finally {
-      _authInProgress = false;
+      if (mounted) setState(() => _authInProgress = false);
     }
   }
 
-  Future<bool> _authNative() async {
+  /// Explicit PIN unlock from the lock screen ("Mit PIN entsperren").
+  Future<void> _authenticateWithPin() async {
+    if (_unlocked || _authInProgress || !mounted) {
+      return;
+    }
+    setState(() => _authInProgress = true);
     try {
-      // No biometrics AND no device PIN/pattern/password → nothing to
-      // authenticate against; don't lock the user out of their own app.
-      if (!await _localAuth.isDeviceSupported()) {
-        return true;
-      }
-      return await _localAuth.authenticate(
-        localizedReason: 'Bitte authentifiziere dich, um Cipher Eye zu entsperren',
-        biometricOnly: false,
-        persistAcrossBackgrounding: true,
-        sensitiveTransaction: true,
-      );
-    } catch (e) {
-      return false;
+      final ok = await AppAuthService.authenticateWithPin(context,
+          allowSetup: kIsWeb);
+      if (ok) _onUnlocked();
+    } finally {
+      if (mounted) setState(() => _authInProgress = false);
     }
   }
 
-  Future<bool> _authWeb() async {
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: PinEntryPopup(key: _dialogKey),
-      ),
-    );
-    return result == true;
+  void _onUnlocked() {
+    if (!mounted) return;
+    Haptics.success();
+    setState(() {
+      _unlocked = true;
+      _obscured = false;
+    });
+    _runPostUnlockTasks();
   }
 
   /// Runs once, only after the user is unlocked AND data has loaded, so the
@@ -146,7 +139,12 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
       return;
     }
     _migrationChecked = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeMigrate());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _maybeMigrate();
+      if (!mounted || _pinOfferChecked) return;
+      _pinOfferChecked = true;
+      await AppAuthService.offerPinSetup(context);
+    });
   }
 
   /// After load, brings stored passwords up to the current crypto version.
@@ -355,9 +353,15 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
                   const SizedBox(height: 28),
                   OutlinedButton.icon(
                     onPressed: _authInProgress ? null : _authenticate,
-                    icon: const Icon(Icons.lock_open, color: Colors.white),
-                    label: const Text('Entsperren',
-                        style: TextStyle(color: Colors.white)),
+                    icon: _authInProgress
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.lock_open, color: Colors.white),
+                    label: Text(_authInProgress ? 'Warte …' : 'Entsperren',
+                        style: const TextStyle(color: Colors.white)),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
                           color: Colors.white.withValues(alpha: 0.5)),
@@ -367,6 +371,18 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
                           borderRadius: BorderRadius.circular(30)),
                     ),
                   ),
+                  if (kIsWeb || SecureStorageService.hasPin) ...[
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed:
+                          _authInProgress ? null : _authenticateWithPin,
+                      icon: Icon(Icons.pin_outlined,
+                          size: 18, color: Colors.white.withValues(alpha: 0.7)),
+                      label: Text('Mit PIN entsperren',
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7))),
+                    ),
+                  ],
                 ],
               ),
             ),

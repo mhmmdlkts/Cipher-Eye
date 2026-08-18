@@ -2,9 +2,11 @@ import 'package:cipher_eye/services/haptics.dart';
 import 'package:cipher_eye/services/history_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:local_auth/local_auth.dart';
 
+import '../popup/pin_entry_popup.dart';
 import '../providers/key_provider.dart';
+import '../services/app_auth_service.dart';
+import '../services/secure_storage_service.dart';
 import '../widgets/app_text_field.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -16,23 +18,35 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final TextEditingController _keyController = TextEditingController();
-  final LocalAuthentication _localAuth = LocalAuthentication();
   bool isLoading = false;
   bool isVisible = false;
 
-  /// Requires device auth before a sensitive key action. If the device has no
-  /// lock at all, allows it (can't enforce what doesn't exist).
-  Future<bool> _reauth(String reason) async {
-    try {
-      if (!await _localAuth.isDeviceSupported()) return true;
-      return await _localAuth.authenticate(
-        localizedReason: reason,
-        biometricOnly: false,
-        persistAcrossBackgrounding: true,
-        sensitiveTransaction: true,
-      );
-    } catch (_) {
-      return false;
+  /// Requires authentication (device auth, PIN as fallback) before a
+  /// sensitive action.
+  Future<bool> _reauth(String reason) =>
+      AppAuthService.authenticate(context, reason: reason);
+
+  Future<void> _setPin() async {
+    final hasPin = SecureStorageService.hasPin;
+    if (!await _reauth(hasPin
+        ? 'Authentifiziere dich, um die PIN zu ändern'
+        : 'Authentifiziere dich, um eine PIN festzulegen')) {
+      return;
+    }
+    if (!mounted) return;
+    final done = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PinEntryPopup(mode: PinMode.setup),
+    );
+    if (!mounted) return;
+    if (done == true) {
+      Haptics.success();
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(hasPin ? 'PIN geändert' : 'PIN festgelegt'),
+        duration: const Duration(seconds: 2),
+      ));
     }
   }
 
@@ -59,12 +73,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final key = ref.watch(keyProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Encryption-Key')),
+      appBar: AppBar(title: const Text('Einstellungen')),
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Encryption-Key',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
             if (key != null)
               _keyPlaceHolder(key)
             else
@@ -76,6 +94,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 maxLength: 32,
                 onChanged: (_) => setState(() {}),
               ),
+            const SizedBox(height: 32),
+            Text('App-PIN', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              SecureStorageService.hasPin
+                  ? 'Eine Ersatz-PIN ist festgelegt. Sie entsperrt die App, wenn '
+                      'Face ID / Touch ID nicht verfügbar ist.'
+                  : 'Noch keine Ersatz-PIN. Mit ihr lässt sich die App entsperren, '
+                      'wenn Face ID / Touch ID nicht reagiert.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _setPin,
+              icon: const Icon(Icons.pin_outlined),
+              label: Text(
+                  SecureStorageService.hasPin ? 'PIN ändern' : 'PIN festlegen'),
+            ),
             const Spacer(),
             if (key == null)
               SizedBox(

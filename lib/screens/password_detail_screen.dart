@@ -83,15 +83,28 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     ));
   }
 
+  Future<void> _copyUsername() async {
+    final name = pass.username ?? '';
+    if (name.isEmpty) return;
+    Haptics.selection();
+    await ClipboardService.copySensitive(name);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Benutzername kopiert'),
+      duration: Duration(seconds: 2),
+    ));
+  }
+
   Future<void> _copy() async {
     if (!ref.read(hasKeyProvider)) {
       _warnNoKey();
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
+    Haptics.selection();
     await ClipboardService.copySensitive(pass.decrypted());
     messenger.showSnackBar(const SnackBar(
-      content: Text('Kopiert – wird in 30 s aus der Zwischenablage gelöscht'),
+      content: Text('Passwort kopiert – wird in 30 s aus der Zwischenablage gelöscht'),
       duration: Duration(seconds: 2),
     ));
     // Log this copy (with location) + count it, then refresh the history.
@@ -229,51 +242,85 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
                     children: [
                       Text(pass.website ?? '',
                           style: Theme.of(context).textTheme.titleLarge),
-                      if ((pass.username ?? '').isNotEmpty)
-                        Text(pass.username!,
-                            style: TextStyle(color: scheme.onSurfaceVariant)),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: scheme.surface,
-                borderRadius: BorderRadius.circular(12),
+            if ((pass.username ?? '').isNotEmpty) ...[
+              _copyRow(
+                scheme,
+                label: 'Benutzername',
+                value: pass.username!,
+                onTap: _copyUsername,
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _revealed ? pass.decrypted() : List.filled(16, '•').join(),
-                      style: const TextStyle(fontSize: 16, letterSpacing: 1.2),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: _revealed ? 'Verbergen' : 'Anzeigen',
-                    icon: Icon(
-                        _revealed ? Icons.visibility : Icons.visibility_off),
-                    onPressed: _toggleReveal,
-                  ),
-                ],
+              const SizedBox(height: 10),
+            ],
+            _copyRow(
+              scheme,
+              label: 'Passwort',
+              value: _revealed ? pass.decrypted() : List.filled(16, '•').join(),
+              mono: true,
+              onTap: _copy,
+              onLongPress: _toggleReveal,
+              trailing: IconButton(
+                tooltip: _revealed ? 'Verbergen' : 'Anzeigen',
+                icon:
+                    Icon(_revealed ? Icons.visibility : Icons.visibility_off),
+                onPressed: _toggleReveal,
               ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _copy,
-                icon: const Icon(Icons.content_copy),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('Passwort kopieren'),
+            const SizedBox(height: 8),
+            Text('Antippen zum Kopieren',
+                style: TextStyle(
+                    fontSize: 12, color: scheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// A sensitive value: tap copies it, long-press optionally reveals it.
+  Widget _copyRow(
+    ColorScheme scheme, {
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+    VoidCallback? onLongPress,
+    Widget? trailing,
+    bool mono = false,
+  }) {
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: EdgeInsets.only(
+              left: 16, right: trailing == null ? 16 : 4, top: 10, bottom: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: TextStyle(
+                            fontSize: 11, color: scheme.onSurfaceVariant)),
+                    const SizedBox(height: 2),
+                    Text(value,
+                        style: TextStyle(
+                            fontSize: 16, letterSpacing: mono ? 1.2 : 0)),
+                  ],
                 ),
               ),
-            ),
-          ],
+              trailing ?? Icon(Icons.content_copy,
+                  size: 18, color: scheme.onSurfaceVariant),
+            ],
+          ),
         ),
       ),
     );
