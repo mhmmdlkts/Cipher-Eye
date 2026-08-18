@@ -6,9 +6,10 @@ import '../models/item_payload.dart';
 import '../models/item_type.dart';
 import '../providers/items_provider.dart';
 import '../providers/key_provider.dart';
-import '../services/firestore_paths_service.dart';
 import '../services/haptics.dart';
+import '../services/item_service.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/source_picker.dart';
 
 class NoteEditorScreen extends ConsumerStatefulWidget {
   const NoteEditorScreen({super.key, this.existing});
@@ -22,11 +23,13 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
   final _title = TextEditingController();
   final _text = TextEditingController();
   bool _saving = false;
+  String? _vaultId;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
+    _vaultId = e?.vaultId;
     if (e != null) {
       _title.text = e.title ?? '';
       try {
@@ -51,9 +54,13 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     if (existing != null) {
       existing.setPayload(title: _title.text.trim(), plainJson: data.encode());
       await notifier.save(existing);
+      if (_vaultId != existing.vaultId) {
+        await notifier.move(existing, _vaultId);
+      }
     } else {
       await notifier.add(Item.payload(
-        col: FirestorePathsService.getItemsCol(),
+        col: ItemService.repoFor(_vaultId).col,
+        vaultId: _vaultId,
         type: ItemType.note,
         title: _title.text.trim(),
         plainJson: data.encode(),
@@ -74,6 +81,10 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          SourcePicker(
+              value: _vaultId,
+              enabled: !_saving,
+              onChanged: (v) => setState(() => _vaultId = v)),
           AppTextField(
               controller: _title,
               label: 'Titel',

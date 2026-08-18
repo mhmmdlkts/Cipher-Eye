@@ -157,6 +157,16 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
               ),
             ],
           ),
+          if (item.vaultId != null)
+            ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+              leading: Icon(Icons.group_outlined, color: scheme.primary),
+              title: Text(
+                  'Geteilt in „${ItemService.vaultById(item.vaultId)?.name ?? 'Tresor'}“'),
+              subtitle: Text(
+                  '${ItemService.vaultById(item.vaultId)?.memberCount ?? 0} Mitglieder'),
+            ),
           const SizedBox(height: 20),
           if (plain == null)
             const Text(

@@ -170,6 +170,7 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _headerCard(scheme),
+          if (pass.vaultId != null) _vaultRow(scheme),
           const SizedBox(height: 24),
           _previousVersions(scheme),
           Row(
@@ -280,6 +281,18 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
     );
   }
 
+  Widget _vaultRow(ColorScheme scheme) {
+    final vault = ItemService.vaultById(pass.vaultId);
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      leading: Icon(Icons.group_outlined, color: scheme.primary),
+      title: Text('Geteilt in „${vault?.name ?? 'Tresor'}“'),
+      subtitle: Text(
+          '${vault?.memberCount ?? 0} Mitglied${(vault?.memberCount ?? 0) == 1 ? '' : 'er'}'),
+    );
+  }
+
   PopupMenuItem<String> _menuItem(
       String value, IconData icon, String label, Color color) {
     return PopupMenuItem<String>(
@@ -381,7 +394,8 @@ class _PasswordDetailScreenState extends ConsumerState<PasswordDetailScreen> {
           backgroundColor: scheme.primary.withValues(alpha: 0.15),
           child: Icon(_iconFor(h.action), color: scheme.primary, size: 20),
         ),
-        title: Text(dt != null ? _formatTs(dt) : 'Unbekannt',
+        title: Text(
+            '${h.displayName != null ? '${h.displayName} · ' : ''}${dt != null ? _formatTs(dt) : 'Unbekannt'}',
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

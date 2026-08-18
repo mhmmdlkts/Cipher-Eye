@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cipher_eye/models/item.dart';
 import 'package:cipher_eye/services/firestore_paths_service.dart';
+import 'package:cipher_eye/services/item_service.dart';
 import 'package:cipher_eye/services/password_generator.dart';
 import 'package:cipher_eye/services/person_service.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import '../providers/items_provider.dart';
 import '../services/clipboard_service.dart';
 import '../services/haptics.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/source_picker.dart';
 
 class AddNewPasswordScreen extends ConsumerStatefulWidget {
   const AddNewPasswordScreen({super.key, this.draft, this.editVersion});
@@ -42,6 +44,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
   bool _copied = false;
   bool _saved = false;
   Item? _draft;
+  String? _vaultId;
   Timer? _clearTimer;
   int _clearSeconds = 0;
 
@@ -53,6 +56,7 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
     super.initState();
     final edit = widget.editVersion;
     final existing = widget.draft;
+    _vaultId = edit?.vaultId ?? existing?.vaultId;
     if (edit != null) {
       // Edit an existing password: prefill, but don't create/persist a draft.
       _websiteController.text = edit.website ?? '';
@@ -224,6 +228,10 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  SourcePicker(
+                      value: _vaultId,
+                      enabled: !isLoading,
+                      onChanged: (v) => setState(() => _vaultId = v)),
                   if (!_isEditVersion) ...[
                     Wrap(
                       spacing: 8.0,
@@ -382,15 +390,21 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                       if (_isEditVersion) {
                         // Editing a real password → store a new version of the
                         // same purpose; the old one is kept but no longer latest.
+                        final edit = widget.editVersion!;
+                        final notifier = ref.read(itemsProvider.notifier);
+                        if (_vaultId != edit.vaultId) {
+                          // Location changed: move the whole purpose (all
+                          // versions) first, then add the new version there.
+                          await notifier.move(edit, _vaultId);
+                        }
                         final newVersion = Item.password(
-                          col: FirestorePathsService.getItemsCol(),
+                          col: ItemService.repoFor(_vaultId).col,
+                          vaultId: _vaultId,
                           website: _websiteController.text,
                           username: _usernameController.text,
                           plainText: _passwordController.text,
                         );
-                        await ref
-                            .read(itemsProvider.notifier)
-                            .updateVersion(newVersion);
+                        await notifier.updateVersion(newVersion);
                       } else {
                         final draft = _draft!;
                         draft.applyEdits(
@@ -399,9 +413,11 @@ class _AddNewPasswordScreenState extends ConsumerState<AddNewPasswordScreen> {
                           plainText: _passwordController.text,
                           finalize: true,
                         );
-                        await ref
-                            .read(itemsProvider.notifier)
-                            .saveDraft(draft, finalize: true);
+                        final notifier = ref.read(itemsProvider.notifier);
+                        await notifier.saveDraft(draft, finalize: true);
+                        if (_vaultId != draft.vaultId) {
+                          await notifier.move(draft, _vaultId);
+                        }
                       }
                       _saved = true;
                       Haptics.success();
