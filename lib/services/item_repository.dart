@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/item.dart';
 import '../models/item_type.dart';
+import 'attachment_service.dart';
 import 'history_service.dart';
 
 /// Receives (action, itemId) for create/update/delete so the repository does
@@ -121,6 +122,7 @@ class ItemRepository {
     items.removeWhere(victims.contains);
     _recomputeLatest();
     for (final v in victims) {
+      if (v.hasAttachments) await AttachmentService.instance.deleteAll(v);
       await v.ref!.delete();
     }
   }

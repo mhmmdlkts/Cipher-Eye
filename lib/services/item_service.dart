@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/item.dart';
 import '../models/item_type.dart';
 import '../models/vault.dart';
+import 'attachment_service.dart';
 import 'crypto_service.dart';
 import 'firestore_paths_service.dart';
 import 'history_service.dart';
@@ -39,6 +40,7 @@ class ItemService {
     for (final r in repos) {
       r.maskAll();
     }
+    AttachmentService.instance.clearCache();
   }
 
   static ItemRepository repoFor(String? vaultId) =>
@@ -137,6 +139,9 @@ class ItemService {
       final plain = v.decrypted();
       final copy =
           Item.copyTo(v, col: to.col, vaultId: toVaultId, plainText: plain);
+      if (v.hasAttachments) {
+        copy.attachments = await AttachmentService.instance.copyAll(v, copy);
+      }
       await to.save(copy);
       if (v.id == item.id) moved = copy;
     }
