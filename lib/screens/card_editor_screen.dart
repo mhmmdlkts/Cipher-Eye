@@ -48,9 +48,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   static String? _validateCvv(String? v) {
     final t = (v ?? '').trim();
     if (t.isEmpty) return null;
-    return RegExp(r'^\d{3,4}$').hasMatch(t)
-        ? null
-        : 'CVV hat 3 oder 4 Ziffern';
+    return RegExp(r'^\d{3,4}$').hasMatch(t) ? null : 'CVV hat 3 oder 4 Ziffern';
   }
 
   static String? _validateIban(String? v) {
@@ -218,6 +216,8 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 value: _vaultId,
                 enabled: !_saving,
                 onChanged: (v) => setState(() => _vaultId = v)),
+            PagesEditor(controller: _pages, enabled: !_saving),
+            const SizedBox(height: 20),
             AppTextField(
                 controller: _title,
                 label: 'Bezeichnung',
@@ -288,8 +288,6 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                 hint: 'optional',
                 prefixIcon: Icons.notes,
                 maxLines: 3),
-            const SizedBox(height: 20),
-            PagesEditor(controller: _pages, enabled: !_saving),
             const SizedBox(height: 24),
             if (_pages.progress != null) ...[
               const LinearProgressIndicator(),

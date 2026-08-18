@@ -90,7 +90,8 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
       Item item;
       final existing = widget.existing;
       if (existing != null) {
-        existing.setPayload(title: _title.text.trim(), plainJson: data.encode());
+        existing.setPayload(
+            title: _title.text.trim(), plainJson: data.encode());
         item = await notifier.saveAndPlace(existing, _vaultId);
         if (!identical(item, existing)) _pages.remapAfterMove(existing, item);
       } else {
@@ -111,8 +112,8 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
     } catch (e) {
       Haptics.warning();
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -134,6 +135,8 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
               value: _vaultId,
               enabled: !_saving,
               onChanged: (v) => setState(() => _vaultId = v)),
+          PagesEditor(controller: _pages, enabled: !_saving),
+          const SizedBox(height: 20),
           DropdownButtonFormField<DocType>(
             initialValue: _docType,
             decoration: const InputDecoration(
@@ -190,8 +193,6 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
               hint: 'optional',
               prefixIcon: Icons.notes,
               maxLines: 3),
-          const SizedBox(height: 20),
-          PagesEditor(controller: _pages, enabled: !_saving),
           const SizedBox(height: 24),
           if (_pages.progress != null) ...[
             const LinearProgressIndicator(),
