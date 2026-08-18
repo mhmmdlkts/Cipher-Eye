@@ -1,5 +1,7 @@
 import 'package:cipher_eye/screens/add_new_password_screen.dart';
 import 'package:cipher_eye/screens/card_editor_screen.dart';
+import 'package:cipher_eye/screens/document_editor_screen.dart';
+import 'package:cipher_eye/screens/file_editor_screen.dart';
 import 'package:cipher_eye/screens/item_detail_screen.dart';
 import 'package:cipher_eye/screens/note_editor_screen.dart';
 import 'package:cipher_eye/screens/password_detail_screen.dart';
@@ -430,13 +432,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       ItemType.password => const AddNewPasswordScreen(),
       ItemType.card => const CardEditorScreen(),
       ItemType.note => const NoteEditorScreen(),
-      _ => const AddNewPasswordScreen(),
+      ItemType.document => const DocumentEditorScreen(),
+      ItemType.file => const FileEditorScreen(),
     };
     await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
-  static bool _typeAvailable(ItemType t) =>
-      t == ItemType.password || t == ItemType.card || t == ItemType.note;
+  static bool _typeAvailable(ItemType t) => true;
 
   Widget _emptyState() {
     final searching = searchVal != null;
