@@ -38,7 +38,7 @@ void main() {
   testWidgets('verify mode rejects everything while no PIN is set',
       (tester) async {
     expect(SecureStorageService.hasPin, isFalse);
-    expect(SecureStorageService.checkPin('123456'), isFalse);
+    expect(await SecureStorageService.checkPin('123456'), isFalse);
   });
 
   testWidgets('setup mode stores the PIN after two matching entries',
@@ -50,8 +50,8 @@ void main() {
     await _type(tester, '135790');
     expect(find.byType(PinEntryPopup), findsNothing);
     expect(SecureStorageService.hasPin, isTrue);
-    expect(SecureStorageService.checkPin('135790'), isTrue);
-    expect(SecureStorageService.checkPin('135791'), isFalse);
+    expect(await SecureStorageService.checkPin('135790'), isTrue);
+    expect(await SecureStorageService.checkPin('135791'), isFalse);
   });
 
   testWidgets('setup mode restarts on mismatch', (tester) async {
@@ -78,6 +78,22 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({'pin': '987654'});
     await SecureStorageService.init();
     expect(SecureStorageService.hasPin, isTrue);
-    expect(SecureStorageService.checkPin('987654'), isTrue);
+    expect(await SecureStorageService.checkPin('987654'), isTrue);
+  });
+
+  testWidgets('too many wrong PINs lock the PIN out; a right one is refused meanwhile',
+      (tester) async {
+    await SecureStorageService.setPin('424242');
+    for (var i = 0; i < SecureStorageService.pinFreeAttempts; i++) {
+      expect(await SecureStorageService.checkPin('000000'), isFalse);
+    }
+    expect(SecureStorageService.pinLockRemaining, isNotNull);
+    expect(await SecureStorageService.checkPin('424242'), isFalse);
+    // Lockout survives a re-init (persisted).
+    await SecureStorageService.init();
+    expect(SecureStorageService.pinLockRemaining, isNotNull);
+    // Dialog shows the lockout hint immediately.
+    await _openPin(tester, PinMode.verify);
+    expect(find.textContaining('Gesperrt'), findsOneWidget);
   });
 }

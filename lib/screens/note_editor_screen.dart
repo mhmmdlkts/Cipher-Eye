@@ -51,24 +51,34 @@ class _NoteEditorScreenState extends ConsumerState<NoteEditorScreen> {
     final data = NoteData(text: _text.text.trim());
     final notifier = ref.read(itemsProvider.notifier);
     final existing = widget.existing;
-    if (existing != null) {
-      existing.setPayload(title: _title.text.trim(), plainJson: data.encode());
-      await notifier.save(existing);
-      if (_vaultId != existing.vaultId) {
-        await notifier.move(existing, _vaultId);
+    try {
+      if (existing != null) {
+        existing.setPayload(
+            title: _title.text.trim(), plainJson: data.encode());
+        await notifier.save(existing);
+        if (_vaultId != existing.vaultId) {
+          await notifier.move(existing, _vaultId);
+        }
+      } else {
+        await notifier.add(Item.payload(
+          col: ItemService.repoFor(_vaultId).col,
+          vaultId: _vaultId,
+          type: ItemType.note,
+          title: _title.text.trim(),
+          plainJson: data.encode(),
+        ));
       }
-    } else {
-      await notifier.add(Item.payload(
-        col: ItemService.repoFor(_vaultId).col,
-        vaultId: _vaultId,
-        type: ItemType.note,
-        title: _title.text.trim(),
-        plainJson: data.encode(),
-      ));
+      if (!mounted) return;
+      Haptics.success();
+      Navigator.pop(context);
+    } catch (e) {
+      Haptics.warning();
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Speichern fehlgeschlagen: $e')));
+      }
     }
-    if (!mounted) return;
-    Haptics.success();
-    Navigator.pop(context);
   }
 
   @override

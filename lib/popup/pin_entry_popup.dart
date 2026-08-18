@@ -25,6 +25,15 @@ class _PinEntryPopupState extends State<PinEntryPopup> {
 
   bool get _isSetup => widget.mode == PinMode.setup;
 
+  @override
+  void initState() {
+    super.initState();
+    final locked = SecureStorageService.pinLockRemaining;
+    if (!_isSetup && locked != null) {
+      _hint = 'Gesperrt – bitte ${_fmt(locked)} warten';
+    }
+  }
+
   String get _title {
     if (!_isSetup) return 'PIN eingeben';
     return _firstEntry == null ? 'Neue PIN festlegen' : 'PIN wiederholen';
@@ -97,14 +106,33 @@ class _PinEntryPopupState extends State<PinEntryPopup> {
     }
   }
 
-  void _handleVerify() {
-    if (SecureStorageService.checkPin(enteredPin)) {
+  Future<void> _handleVerify() async {
+    final locked = SecureStorageService.pinLockRemaining;
+    if (locked != null) {
+      Haptics.warning();
+      setState(() {
+        enteredPin = '';
+        _hint = 'Gesperrt – bitte ${_fmt(locked)} warten';
+      });
+      return;
+    }
+    final ok = await SecureStorageService.checkPin(enteredPin);
+    if (!mounted) return;
+    if (ok) {
       Haptics.success();
       Navigator.of(context).pop(true);
       return;
     }
     Haptics.warning();
     tryRemains--;
+    final nowLocked = SecureStorageService.pinLockRemaining;
+    if (nowLocked != null) {
+      setState(() {
+        enteredPin = '';
+        _hint = 'Zu viele Versuche – gesperrt für ${_fmt(nowLocked)}';
+      });
+      return;
+    }
     if (tryRemains <= 0) {
       Navigator.of(context).pop(false);
       return;
@@ -114,6 +142,10 @@ class _PinEntryPopupState extends State<PinEntryPopup> {
       _hint = 'Falsche PIN – noch $tryRemains Versuch${tryRemains == 1 ? '' : 'e'}';
     });
   }
+
+  static String _fmt(Duration d) => d.inMinutes >= 1
+      ? '${d.inMinutes + 1} Min.'
+      : '${d.inSeconds.clamp(1, 59)} s';
 
   Future<void> _handleSetup() async {
     if (_firstEntry == null) {

@@ -6,7 +6,7 @@ import '../providers/key_provider.dart';
 import '../providers/vaults_provider.dart';
 import '../services/haptics.dart';
 import '../services/item_service.dart';
-import '../widgets/app_text_field.dart';
+import '../widgets/text_prompt_dialog.dart';
 import 'vault_detail_screen.dart';
 import 'vault_join_screen.dart';
 
@@ -21,30 +21,12 @@ class VaultsScreen extends ConsumerWidget {
               'Kein Encryption-Key gesetzt — Tresore brauchen ihn zum Sichern des Tresor-Keys.')));
       return;
     }
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Neuer Tresor'),
-        content: AppTextField(
-          controller: controller,
-          label: 'Name',
-          hint: 'z. B. Oma',
-          prefixIcon: Icons.group_outlined,
-          autofocus: true,
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Erstellen')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final name = await showTextPrompt(context,
+        title: 'Neuer Tresor',
+        label: 'Name',
+        hint: 'z. B. Oma',
+        confirm: 'Erstellen',
+        icon: Icons.group_outlined);
     if (name == null || name.trim().isEmpty || !context.mounted) return;
     await ref.read(vaultsProvider.notifier).create(name.trim());
     Haptics.success();

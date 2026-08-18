@@ -6,7 +6,7 @@ import '../models/vault.dart';
 import '../providers/vaults_provider.dart';
 import '../services/haptics.dart';
 import '../services/item_service.dart';
-import '../widgets/app_text_field.dart';
+import '../widgets/text_prompt_dialog.dart';
 import 'vault_invite_screen.dart';
 
 /// Members, invite, and owner/member actions for one vault.
@@ -34,27 +34,11 @@ class VaultDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _rename(BuildContext context, WidgetRef ref, Vault v) async {
-    final controller = TextEditingController(text: v.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tresor umbenennen'),
-        content: AppTextField(
-            controller: controller,
-            label: 'Name',
-            autofocus: true,
-            onSubmitted: (s) => Navigator.pop(ctx, s)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Speichern')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final name = await showTextPrompt(context,
+        title: 'Tresor umbenennen',
+        label: 'Name',
+        initial: v.name,
+        confirm: 'Speichern');
     if (name == null || name.trim().isEmpty) return;
     await ref.read(vaultsProvider.notifier).rename(v, name.trim());
   }

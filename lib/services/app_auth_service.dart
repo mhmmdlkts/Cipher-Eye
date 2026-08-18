@@ -29,27 +29,36 @@ class AppAuthService {
   static final LocalAuthentication _localAuth = LocalAuthentication();
   static const Duration timeout = Duration(seconds: 30);
 
-  static Future<DeviceAuthResult> deviceAuth(String reason) async {
+  /// [onLateSuccess] fires when the system prompt answers `true` only after
+  /// [timeout] already elapsed (e.g. a slow passcode entry) — the caller can
+  /// still unlock then instead of discarding the result.
+  static Future<DeviceAuthResult> deviceAuth(String reason,
+      {VoidCallback? onLateSuccess}) async {
     if (kIsWeb) return DeviceAuthResult.unsupported;
     try {
       if (!await _localAuth.isDeviceSupported()) {
         return DeviceAuthResult.unsupported;
       }
-      var timedOut = false;
-      final ok = await _localAuth
-          .authenticate(
-            localizedReason: reason,
-            biometricOnly: false,
-            persistAcrossBackgrounding: true,
-            sensitiveTransaction: true,
-          )
-          .timeout(timeout, onTimeout: () {
-        timedOut = true;
-        _localAuth.stopAuthentication();
-        return false;
-      });
-      if (timedOut) return DeviceAuthResult.failed;
-      return ok ? DeviceAuthResult.success : DeviceAuthResult.cancelled;
+      final auth = _localAuth.authenticate(
+        localizedReason: reason,
+        biometricOnly: false,
+        persistAcrossBackgrounding: true,
+        sensitiveTransaction: true,
+      );
+      final winner = await Future.any<bool?>([
+        auth,
+        Future<bool?>.delayed(timeout, () => null),
+      ]);
+      if (winner == null) {
+        // Prompt still pending: on Android stop it; on Apple platforms it
+        // stays up, so keep listening for a late answer.
+        _localAuth.stopAuthentication().catchError((_) => false);
+        auth.then((ok) {
+          if (ok) onLateSuccess?.call();
+        }).catchError((_) {});
+        return DeviceAuthResult.failed;
+      }
+      return winner ? DeviceAuthResult.success : DeviceAuthResult.cancelled;
     } catch (_) {
       return DeviceAuthResult.failed;
     }
@@ -62,9 +71,16 @@ class AppAuthService {
   /// be created on first use ([allowPinSetup]). On native, PIN set-up is only
   /// offered after a successful device auth (see [offerPinSetup]) — never from
   /// the locked state, otherwise anyone could set a PIN and walk in.
+  ///
+  /// [silent] suppresses the "no PIN" dialog — used for automatic attempts
+  /// (cold start, app resume) so a device whose prompt keeps failing does not
+  /// show a modal every time the app comes to the foreground.
   static Future<bool> authenticate(BuildContext context,
-      {required String reason, bool allowPinSetup = kIsWeb}) async {
-    final result = await deviceAuth(reason);
+      {required String reason,
+      bool allowPinSetup = kIsWeb,
+      bool silent = false,
+      VoidCallback? onLateSuccess}) async {
+    final result = await deviceAuth(reason, onLateSuccess: onLateSuccess);
     if (!context.mounted) return false;
     switch (result) {
       case DeviceAuthResult.success:
@@ -79,9 +95,10 @@ class AppAuthService {
         return authenticateWithPin(context, allowSetup: allowPinSetup);
       case DeviceAuthResult.failed:
         if (!SecureStorageService.hasPin && !allowPinSetup) {
-          await _showNoPinDialog(context);
+          if (!silent) await _showNoPinDialog(context);
           return false;
         }
+        if (silent) return false;
         return authenticateWithPin(context, allowSetup: allowPinSetup);
     }
   }

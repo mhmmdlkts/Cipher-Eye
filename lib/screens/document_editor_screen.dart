@@ -17,6 +17,7 @@ import '../services/item_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/page_strip.dart';
 import '../widgets/source_picker.dart';
+import '../widgets/text_prompt_dialog.dart';
 
 /// Create/edit a document (ID, passport, licence, …): encrypted fields plus
 /// an ordered set of encrypted image pages.
@@ -185,25 +186,8 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
   }
 
   Future<void> _relabel(int i) async {
-    final controller = TextEditingController(text: _pages[i].label);
-    final label = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Beschriftung'),
-        content: AppTextField(
-            controller: controller,
-            label: 'Beschriftung',
-            autofocus: true,
-            onSubmitted: (v) => Navigator.pop(ctx, v)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Abbrechen')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('OK')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final label = await showTextPrompt(context,
+        title: 'Beschriftung', label: 'Beschriftung', initial: _pages[i].label);
     if (label == null) return;
     setState(() => _pages[i].label = label.trim());
   }

@@ -45,7 +45,8 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
       if (mounted) setState(() => _loaded = true);
     });
     // Lock gate on cold start: prompt as soon as the first frame is up.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _authenticate());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _authenticate(userInitiated: false));
   }
 
   @override
@@ -68,7 +69,7 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
         }
       });
       if (!_unlocked) {
-        _authenticate();
+        _authenticate(userInitiated: false);
       }
     } else {
       // inactive / paused / hidden: cover the content right away so the app
@@ -94,36 +95,44 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
   /// when the device prompt is unavailable or never answers. [_authInProgress]
   /// is real state so the lock screen reflects it, and it is always reset —
   /// a hanging prompt can no longer leave the unlock button dead.
-  Future<void> _authenticate() async {
+  Future<void> _authenticate({bool userInitiated = true}) async {
     if (_unlocked || _authInProgress || !mounted) {
       return;
     }
     setState(() => _authInProgress = true);
     try {
-      final ok = await AppAuthService.authenticate(context, reason: _unlockReason);
+      final ok = await AppAuthService.authenticate(
+        context,
+        reason: _unlockReason,
+        silent: !userInitiated,
+        onLateSuccess: _onUnlocked,
+      );
       if (ok) _onUnlocked();
     } finally {
       if (mounted) setState(() => _authInProgress = false);
     }
   }
 
-  /// Explicit PIN unlock from the lock screen ("Mit PIN entsperren").
+  /// Explicit PIN unlock from the lock screen ("Mit PIN entsperren"). Kept
+  /// independent of a possibly hanging device prompt so the user always has a
+  /// way in.
+  bool _pinInProgress = false;
   Future<void> _authenticateWithPin() async {
-    if (_unlocked || _authInProgress || !mounted) {
+    if (_unlocked || _pinInProgress || !mounted) {
       return;
     }
-    setState(() => _authInProgress = true);
+    setState(() => _pinInProgress = true);
     try {
       final ok = await AppAuthService.authenticateWithPin(context,
           allowSetup: kIsWeb);
       if (ok) _onUnlocked();
     } finally {
-      if (mounted) setState(() => _authInProgress = false);
+      if (mounted) setState(() => _pinInProgress = false);
     }
   }
 
   void _onUnlocked() {
-    if (!mounted) return;
+    if (!mounted || _unlocked) return;
     Haptics.success();
     setState(() {
       _unlocked = true;
@@ -375,7 +384,7 @@ class _FirstScreenState extends State<FirstScreen> with WidgetsBindingObserver {
                     const SizedBox(height: 12),
                     TextButton.icon(
                       onPressed:
-                          _authInProgress ? null : _authenticateWithPin,
+                          _pinInProgress ? null : _authenticateWithPin,
                       icon: Icon(Icons.pin_outlined,
                           size: 18, color: Colors.white.withValues(alpha: 0.7)),
                       label: Text('Mit PIN entsperren',
