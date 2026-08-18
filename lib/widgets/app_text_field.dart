@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// A modern, reusable text field: filled, rounded, optional leading icon.
 /// Wraps [TextFormField] so it works both with and without form validation.
@@ -18,6 +19,8 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.onSubmitted,
+    this.inputFormatters,
+    this.maxLines = 1,
   });
 
   final TextEditingController? controller;
@@ -33,6 +36,8 @@ class AppTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final List<TextInputFormatter>? inputFormatters;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +53,8 @@ class AppTextField extends StatelessWidget {
       validator: validator,
       onChanged: onChanged,
       onFieldSubmitted: onSubmitted,
+      inputFormatters: inputFormatters,
+      maxLines: obscureText ? 1 : maxLines,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
