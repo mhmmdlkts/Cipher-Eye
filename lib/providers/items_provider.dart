@@ -81,6 +81,17 @@ class ItemsNotifier extends Notifier<List<Item>> {
     return moved;
   }
 
+  /// Renewal: [fresh] replaces [old] (which is archived, not deleted).
+  Future<void> renew(Item old, Item fresh) async {
+    await ItemService.renew(old, fresh);
+    refresh();
+  }
+
+  Future<void> acknowledgeExpiry(Item item, String hash) async {
+    await ItemService.acknowledgeExpiry(item, hash);
+    refresh();
+  }
+
   Future<void> addDraft(Item draft) => save(draft);
   Future<void> saveDraft(Item draft, {bool finalize = false}) => save(draft);
 }

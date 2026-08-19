@@ -10,6 +10,7 @@ import 'package:cipher_eye/screens/vaults_screen.dart';
 import 'package:cipher_eye/services/item_service.dart';
 import 'package:cipher_eye/services/clipboard_service.dart';
 import 'package:cipher_eye/services/firebase_service.dart';
+import 'package:cipher_eye/services/expiry.dart';
 import 'package:cipher_eye/services/haptics.dart';
 import 'package:cipher_eye/services/history_service.dart';
 import 'package:cipher_eye/services/person_service.dart';
@@ -20,7 +21,9 @@ import 'package:kreiseck_branding/kreiseck_branding.dart';
 import '../models/item.dart';
 import '../models/item_type.dart';
 import '../providers/key_provider.dart';
+import '../providers/items_provider.dart';
 import '../providers/vaults_provider.dart';
+import '../widgets/expiry_badge.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -134,6 +137,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: Column(
         children: [
           if (!hasKey) _noKeyBanner(),
+          if (hasKey) _expiryBanner(),
           if (ref.watch(vaultsProvider).isNotEmpty &&
               (_showSearchBar || ref.watch(sourceFilterProvider) != null))
             _sourceChips(),
@@ -254,6 +258,101 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  /// Documents/cards that expire soon or already did — and were not
+  /// acknowledged with "OK" yet.
+  List<(Item, ExpiryInfo)> _expiring() {
+    final out = <(Item, ExpiryInfo)>[];
+    for (final it in ref.watch(itemsProvider)) {
+      if (it.type != ItemType.document && it.type != ItemType.card) continue;
+      final info = Expiry.of(it);
+      if (info.needsAttention && !Expiry.isAcked(it, info)) out.add((it, info));
+    }
+    out.sort((a, b) => (a.$2.days ?? 0).compareTo(b.$2.days ?? 0));
+    return out;
+  }
+
+  Widget _expiryBanner() {
+    final list = _expiring();
+    if (list.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final worst = list.first.$2.level;
+    final color = expiryColor(worst, scheme);
+    final expired = list.where((e) => e.$2.level == ExpiryLevel.expired).length;
+    final soon = list.length - expired;
+    final parts = <String>[
+      if (expired > 0) '$expired abgelaufen',
+      if (soon > 0) '$soon ${soon == 1 ? 'läuft' : 'laufen'} bald ab',
+    ];
+    return Material(
+      color: color.withValues(alpha: 0.12),
+      child: ListTile(
+        dense: true,
+        leading: Icon(expiryIcon(worst), color: color),
+        title: Text(
+            list.length == 1
+                ? '${list.first.$1.title ?? 'Dokument'}: ${list.first.$2.label}'
+                : 'Dokumente/Karten: ${parts.join(', ')}',
+            style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+        trailing: TextButton(
+          onPressed: _showExpirySheet,
+          child: const Text('Anzeigen'),
+        ),
+        onTap: _showExpirySheet,
+      ),
+    );
+  }
+
+  Future<void> _showExpirySheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => Consumer(builder: (ctx, ref, _) {
+        final list = _expiring();
+        final scheme = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text('Ablaufende Dokumente & Karten',
+                    style: Theme.of(ctx).textTheme.titleMedium),
+              ),
+              if (list.isEmpty)
+                const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: Text('Alles erledigt'))),
+              for (final (it, info) in list)
+                ListTile(
+                  leading: Icon(it.type.icon,
+                      color: expiryColor(info.level, scheme)),
+                  title: Text(it.title ?? it.type.label),
+                  subtitle: ExpiryBadge(info),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      Haptics.selection();
+                      await ref
+                          .read(itemsProvider.notifier)
+                          .acknowledgeExpiry(it, Expiry.ackHash(it, info.raw!));
+                      if (mounted) setState(() {});
+                    },
+                    child: const Text('OK'),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _open(it);
+                  },
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      }),
+    );
+    if (mounted) setState(() {});
+  }
+
   Widget _vaultBadge(Item pass, ColorScheme scheme) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
@@ -337,11 +436,23 @@ class _HomePageState extends ConsumerState<HomePage> {
                 Text(value, style: const TextStyle(letterSpacing: 1.5)),
               ],
             )
-          : Text(
-              pass.hasAttachments
-                  ? '${pass.type.label} · ${pass.attachments.length} Seite${pass.attachments.length == 1 ? '' : 'n'}'
-                  : pass.type.label,
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+          : Row(
+              children: [
+                Flexible(
+                  child: Text(
+                      pass.hasAttachments
+                          ? '${pass.type.label} · ${pass.attachments.length} Seite${pass.attachments.length == 1 ? '' : 'n'}'
+                          : pass.type.label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: scheme.onSurfaceVariant, fontSize: 12)),
+                ),
+                if (_hasKey && Expiry.of(pass).needsAttention) ...[
+                  const SizedBox(width: 8),
+                  ExpiryBadge(Expiry.of(pass), compact: true),
+                ],
+              ],
+            ),
       trailing: IconButton(
         visualDensity: VisualDensity.compact,
         tooltip: pass.isDraft ? 'Entwurf bearbeiten' : 'Details öffnen',

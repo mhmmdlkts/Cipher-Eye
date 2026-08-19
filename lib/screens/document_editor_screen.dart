@@ -16,11 +16,16 @@ import '../widgets/source_picker.dart';
 /// Create/edit a document (ID, passport, licence, …): encrypted fields plus
 /// an ordered set of encrypted image pages.
 class DocumentEditorScreen extends ConsumerStatefulWidget {
-  const DocumentEditorScreen({super.key, this.existing, this.docType});
+  const DocumentEditorScreen(
+      {super.key, this.existing, this.docType, this.renewOf});
   final Item? existing;
 
   /// Preselected template for a new document.
   final DocType? docType;
+
+  /// Renewal: a fresh document that replaces [renewOf] (which gets archived,
+  /// not deleted). Type/title/notes are prefilled, pages and dates start empty.
+  final Item? renewOf;
 
   @override
   ConsumerState<DocumentEditorScreen> createState() =>
@@ -55,6 +60,15 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
         _note.text = d.note ?? '';
       } catch (_) {}
       _pages.loadFrom(e);
+    } else if (widget.renewOf != null) {
+      final r = widget.renewOf!;
+      _vaultId = r.vaultId;
+      _title.text = r.title ?? '';
+      try {
+        final d = DocumentData.decode(r.decrypted());
+        _docType = d.docType;
+        _note.text = d.note ?? '';
+      } catch (_) {}
     } else {
       _docType = widget.docType ?? DocType.other;
       _title.text = _docType == DocType.other ? '' : _docType.label;
@@ -106,6 +120,8 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
       }
       await _pages.commit(item);
       await notifier.save(item);
+      final old = widget.renewOf;
+      if (old != null) await notifier.renew(old, item);
       if (!mounted) return;
       Haptics.success();
       Navigator.pop(context, item);
@@ -124,16 +140,33 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: Text(widget.existing == null
-              ? 'Neues Dokument'
-              : 'Dokument bearbeiten')),
+          title: Text(widget.existing != null
+              ? 'Dokument bearbeiten'
+              : widget.renewOf != null
+                  ? 'Dokument erneuern'
+                  : 'Neues Dokument')),
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (widget.renewOf != null)
+            Card(
+              elevation: 0,
+              margin: const EdgeInsets.only(bottom: 16),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: ListTile(
+                leading: Icon(Icons.autorenew, color: Theme.of(context).colorScheme.primary),
+                title: const Text('Erneuerung'),
+                subtitle: Text(
+                    'Das bisherige Dokument „${widget.renewOf!.title ?? ''}“ wird archiviert '
+                    'und bleibt unter dem neuen als frühere Version abrufbar. Bitte die '
+                    'neuen Seiten scannen und Nummer/Daten eintragen.'),
+              ),
+            ),
           SourcePicker(
               value: _vaultId,
-              enabled: !_saving,
+              enabled: !_saving && widget.renewOf == null,
               onChanged: (v) => setState(() => _vaultId = v)),
           PagesEditor(controller: _pages, enabled: !_saving),
           const SizedBox(height: 20),

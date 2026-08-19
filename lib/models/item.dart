@@ -32,6 +32,16 @@ class Item implements Comparable<Item> {
   bool isVisible = false;
   List<Attachment> attachments = [];
 
+  /// Renewal chain: an archived item was replaced by [supersededBy]; the new
+  /// one points back via [predecessorId]. Archived items leave the main list
+  /// but stay reachable under their successor.
+  bool archived = false;
+  String? supersededBy;
+  String? predecessorId;
+
+  /// sha256(id + expiry) once the user pressed "OK" on an expiry warning.
+  String? expiryAck;
+
   /// The Firestore document this item lives in (set on load / creation).
   DocumentReference? ref;
 
@@ -172,6 +182,10 @@ class Item implements Comparable<Item> {
     isDraft = o['isDraft'] == true;
     if (o['copyCount'] != null) copyCount = (o['copyCount'] as num).toInt();
     if (o['viewCount'] != null) viewCount = (o['viewCount'] as num).toInt();
+    archived = o['archived'] == true;
+    supersededBy = o['supersededBy'] as String?;
+    predecessorId = o['predecessorId'] as String?;
+    expiryAck = o['expiryAck'] as String?;
     if (o['attachments'] is List) {
       attachments = (o['attachments'] as List)
           .whereType<Map>()
@@ -195,6 +209,10 @@ class Item implements Comparable<Item> {
       'isDraft': isDraft,
       'copyCount': copyCount,
       'viewCount': viewCount,
+      'archived': archived,
+      'supersededBy': supersededBy,
+      'predecessorId': predecessorId,
+      'expiryAck': expiryAck,
       'attachments': [for (final a in attachments) a.toJson()],
     };
     if (withNull) return map;

@@ -62,10 +62,33 @@ class ItemRepository {
 
   static int _ts(Item i) => i.timestamp?.millisecondsSinceEpoch ?? 0;
 
-  /// What the list shows: latest password per purpose + every non-password.
+  /// What the list shows: latest password per purpose + every non-password
+  /// that has not been archived by a renewal.
   List<Item> get latest => items
-      .where((i) => !i.isDraft && (i.type != ItemType.password || i.isLatest))
+      .where((i) =>
+          !i.isDraft &&
+          !i.archived &&
+          (i.type != ItemType.password || i.isLatest))
       .toList();
+
+  Item? byId(String id) {
+    for (final i in items) {
+      if (i.id == id) return i;
+    }
+    return null;
+  }
+
+  /// Older, archived versions of a renewed item (newest first).
+  List<Item> predecessorsOf(Item item) {
+    final out = <Item>[];
+    var cur = item.predecessorId == null ? null : byId(item.predecessorId!);
+    final seen = <String>{item.id!};
+    while (cur != null && seen.add(cur.id!)) {
+      out.add(cur);
+      cur = cur.predecessorId == null ? null : byId(cur.predecessorId!);
+    }
+    return out;
+  }
 
   List<Item> get drafts => items.where((i) => i.isDraft).toList();
 
@@ -146,6 +169,14 @@ class ItemRepository {
     for (final v in victims) {
       if (v.hasAttachments) await AttachmentService.instance.deleteAll(v);
       await v.ref!.delete();
+      // Deleting a renewed document brings its archived predecessor back,
+      // so nothing silently disappears from the list.
+      final prev = v.predecessorId == null ? null : byId(v.predecessorId!);
+      if (prev != null && prev.archived && prev.supersededBy == v.id) {
+        prev.archived = false;
+        prev.supersededBy = null;
+        await prev.ref!.update({'archived': false, 'supersededBy': null});
+      }
     }
   }
 

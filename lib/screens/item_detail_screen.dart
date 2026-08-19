@@ -8,12 +8,14 @@ import '../providers/items_provider.dart';
 import '../providers/key_provider.dart';
 import '../models/attachment.dart';
 import '../services/clipboard_service.dart';
+import '../services/expiry.dart';
 import '../services/export_service.dart';
 import '../services/haptics.dart';
 import '../services/history_service.dart';
 import '../services/item_service.dart';
 import '../widgets/attachment_viewer.dart';
 import '../widgets/copy_row.dart';
+import '../widgets/expiry_badge.dart';
 import 'card_editor_screen.dart';
 import 'document_editor_screen.dart';
 import 'file_editor_screen.dart';
@@ -260,6 +262,8 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
               subtitle: Text(
                   '${ItemService.vaultById(item.vaultId)?.memberCount ?? 0} Mitglieder'),
             ),
+          if (item.archived) _archivedBanner(scheme),
+          if (plain != null) _expiryCard(scheme),
           const SizedBox(height: 20),
           if (plain != null && item.hasAttachments) ...[
             AttachmentViewer(item),
@@ -279,9 +283,154 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
           const SizedBox(height: 8),
           Text('Antippen zum Kopieren · lange drücken zum Anzeigen',
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          ..._predecessors(scheme),
         ],
       ),
     );
+  }
+
+  Widget _archivedBanner(ColorScheme scheme) {
+    final successor = item.supersededBy == null
+        ? null
+        : ItemService.repoFor(item.vaultId).byId(item.supersededBy!);
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(top: 12),
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ListTile(
+        leading: Icon(Icons.inventory_2_outlined, color: scheme.onSurfaceVariant),
+        title: const Text('Archiviert'),
+        subtitle: Text(successor == null
+            ? 'Dieses Dokument wurde durch ein neues ersetzt.'
+            : 'Ersetzt durch „${successor.title ?? ''}“ – zum Öffnen tippen.'),
+        trailing: successor == null ? null : const Icon(Icons.chevron_right),
+        onTap: successor == null
+            ? null
+            : () => Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (_) => ItemDetailScreen(successor))),
+      ),
+    );
+  }
+
+  Widget _expiryCard(ColorScheme scheme) {
+    if (item.archived) return const SizedBox.shrink();
+    final info = Expiry.of(item);
+    if (!info.needsAttention) return const SizedBox.shrink();
+    final color = expiryColor(info.level, scheme);
+    final acked = Expiry.isAcked(item, info);
+    final dateText = info.date == null
+        ? ''
+        : '${info.date!.day.toString().padLeft(2, '0')}.${info.date!.month.toString().padLeft(2, '0')}.${info.date!.year}';
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(top: 12),
+      color: color.withValues(alpha: 0.10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(expiryIcon(info.level), color: color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('${info.label} · $dateText',
+                    style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+              ),
+            ]),
+            const SizedBox(height: 4),
+            Text(
+              item.type == ItemType.document
+                  ? (info.level == ExpiryLevel.expired
+                      ? 'Das Dokument ist nicht mehr gültig. Erneuere es und scanne die neue Version – die alte bleibt archiviert erhalten.'
+                      : 'Rechtzeitig um eine Verlängerung kümmern. Nach dem Erneuern bleibt die alte Version hier auffindbar.')
+                  : 'Die Karte läuft ab – bei der Bank nach einer neuen fragen und die Daten hier aktualisieren.',
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (item.type == ItemType.document)
+                  ElevatedButton.icon(
+                    onPressed: _renew,
+                    icon: const Icon(Icons.autorenew, size: 18),
+                    label: const Text('Erneuern'),
+                  ),
+                const Spacer(),
+                if (!acked)
+                  TextButton(
+                    onPressed: () async {
+                      Haptics.selection();
+                      await ref
+                          .read(itemsProvider.notifier)
+                          .acknowledgeExpiry(item, Expiry.ackHash(item, info.raw!));
+                      if (mounted) setState(() {});
+                    },
+                    child: const Text('OK, verstanden'),
+                  )
+                else
+                  Text('Hinweis quittiert',
+                      style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _renew() async {
+    if (!ref.read(hasKeyProvider)) return;
+    final fresh = await Navigator.push<Item>(context,
+        MaterialPageRoute(builder: (_) => DocumentEditorScreen(renewOf: item)));
+    if (!mounted || fresh == null) return;
+    // Show the new document; the old one is reachable from there.
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (_) => ItemDetailScreen(fresh)));
+  }
+
+  List<Widget> _predecessors(ColorScheme scheme) {
+    final older = ItemService.repoFor(item.vaultId).predecessorsOf(item);
+    if (older.isEmpty) return const [];
+    return [
+      const SizedBox(height: 24),
+      Row(children: [
+        Text('Frühere Versionen', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(width: 8),
+        Icon(Icons.history, size: 16, color: scheme.onSurfaceVariant),
+      ]),
+      const SizedBox(height: 10),
+      for (final p in older)
+        Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 8),
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: ListTile(
+            leading: Icon(Icons.inventory_2_outlined, color: scheme.primary),
+            title: Text(p.title ?? p.type.label),
+            subtitle: Text(_predecessorSubtitle(p)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => ItemDetailScreen(p))),
+          ),
+        ),
+    ];
+  }
+
+  String _predecessorSubtitle(Item p) {
+    final parts = <String>['Archiviert'];
+    try {
+      final d = DocumentData.decode(p.decrypted());
+      if ((d.number ?? '').isNotEmpty) parts.add('Nr. ${d.number}');
+      if ((d.expires ?? '').isNotEmpty) parts.add('gültig bis ${d.expires}');
+    } catch (_) {}
+    if (p.hasAttachments) {
+      parts.add('${p.attachments.length} Seite${p.attachments.length == 1 ? '' : 'n'}');
+    }
+    return parts.join(' · ');
   }
 
   List<Widget> _cardBody(CardData c) => [

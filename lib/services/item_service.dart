@@ -6,6 +6,7 @@ import '../models/item_type.dart';
 import '../models/vault.dart';
 import 'attachment_service.dart';
 import 'crypto_service.dart';
+import 'expiry.dart';
 import 'firestore_paths_service.dart';
 import 'history_service.dart';
 import 'item_repository.dart';
@@ -41,6 +42,23 @@ class ItemService {
       r.maskAll();
     }
     AttachmentService.instance.clearCache();
+    Expiry.clearCache();
+  }
+
+  /// Marks [old] as replaced by [fresh] (same repository); the old item is
+  /// archived, keeps its pages and stays reachable under the new one.
+  static Future<void> renew(Item old, Item fresh) async {
+    final repo = repoFor(fresh.vaultId);
+    fresh.predecessorId = old.id;
+    await repo.save(fresh);
+    old.archived = true;
+    old.supersededBy = fresh.id;
+    await repo.save(old);
+  }
+
+  static Future<void> acknowledgeExpiry(Item item, String hash) async {
+    item.expiryAck = hash;
+    await item.ref!.update({'expiryAck': hash});
   }
 
   static ItemRepository repoFor(String? vaultId) {
