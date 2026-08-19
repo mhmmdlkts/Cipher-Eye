@@ -55,6 +55,7 @@ android {
             // Use the real release keystore when key.properties is present,
             // otherwise fall back to debug keys so plain checkouts still build.
             signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
